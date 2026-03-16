@@ -29,6 +29,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role,
           },
         });
+      } else {
+        // Update image and name on each sign-in
+        await prisma.user.update({
+          where: { email: user.email },
+          data: {
+            image: user.image ?? existing.image,
+            name: existing.name || user.name || null,
+          },
+        });
       }
 
       return true;
@@ -42,6 +51,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (dbUser) {
           token.id = dbUser.id;
           token.role = dbUser.role;
+          token.isQualified = dbUser.isQualified;
         }
       }
       return token;

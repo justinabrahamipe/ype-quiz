@@ -36,9 +36,11 @@ export default function QuizAttemptPage() {
   // Start the quiz
   useEffect(() => {
     fetch(`/api/quiz/${quizId}/start`, { method: "POST" })
-      .then((r) => {
+      .then(async (r) => {
         if (!r.ok) {
-          router.push("/");
+          const err = await r.json().catch(() => ({ error: "Failed to start quiz" }));
+          toast(err.error || "Cannot start quiz", "error");
+          setTimeout(() => router.push("/"), 1500);
           return null;
         }
         return r.json();
@@ -53,7 +55,10 @@ export default function QuizAttemptPage() {
         );
         setLoading(false);
       })
-      .catch(() => router.push("/"));
+      .catch(() => {
+        toast("Failed to load quiz", "error");
+        setTimeout(() => router.push("/"), 1500);
+      });
   }, [quizId, router]);
 
   // Reset timer when question changes
@@ -157,8 +162,13 @@ export default function QuizAttemptPage() {
   const handleCompleteQuiz = async () => {
     setSubmitting(true);
     try {
-      await fetch(`/api/quiz/${quizId}/complete`, { method: "POST" });
-      router.push(`/quiz/${quizId}/submitted`);
+      const res = await fetch(`/api/quiz/${quizId}/complete`, { method: "POST" });
+      const data = await res.json();
+      if (data.isPrerequisite) {
+        router.push(`/quiz/${quizId}/submitted`);
+      } else {
+        router.push(`/quiz/${quizId}/submitted`);
+      }
     } catch {
       toast("Failed to submit quiz", "error");
       setSubmitting(false);

@@ -16,14 +16,20 @@ export default function CreateQuizPage() {
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState("");
   const [biblePortion, setBiblePortion] = useState("");
-  const [startDate, setStartDate] = useState("");
+  const [startDateTime, setStartDateTime] = useState("");
+  const [endDateTime, setEndDateTime] = useState("");
   const [questionCount, setQuestionCount] = useState(10);
+  const [isPrerequisite, setIsPrerequisite] = useState(false);
   const [questions, setQuestions] = useState<QuestionForm[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const handleNext = () => {
-    if (!title || !biblePortion || !startDate || questionCount < 1) {
+    if (!title || !biblePortion || !startDateTime || !endDateTime || questionCount < 1) {
       toast("Please fill in all fields", "error");
+      return;
+    }
+    if (new Date(endDateTime) <= new Date(startDateTime)) {
+      toast("End time must be after start time", "error");
       return;
     }
     setQuestions(
@@ -109,8 +115,10 @@ export default function CreateQuizPage() {
         body: JSON.stringify({
           title,
           biblePortion,
-          startDate,
+          startDateTime,
+          endDateTime,
           questionCount,
+          isPrerequisite,
           questions: questions.map((q) => ({
             questionText: q.questionText,
             answerType: q.answerType,
@@ -164,17 +172,25 @@ export default function CreateQuizPage() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">
-                Start Date
+                Start Date & Time
               </label>
               <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                type="datetime-local"
+                value={startDateTime}
+                onChange={(e) => setStartDateTime(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
               />
-              <p className="text-xs text-slate-400 mt-1">
-                Quiz starts at 12:00 noon and ends at 23:59 the next day (~36 hours)
-              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                End Date & Time
+              </label>
+              <input
+                type="datetime-local"
+                value={endDateTime}
+                onChange={(e) => setEndDateTime(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">
@@ -188,6 +204,18 @@ export default function CreateQuizPage() {
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
               />
             </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isPrerequisite}
+                onChange={(e) => setIsPrerequisite(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
+              />
+              <div>
+                <span className="text-sm font-medium">Prerequisite Quiz</span>
+                <p className="text-xs text-slate-400">Users must score 70%+ to unlock regular quizzes</p>
+              </div>
+            </label>
             <button
               onClick={handleNext}
               className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"

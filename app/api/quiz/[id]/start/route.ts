@@ -27,12 +27,54 @@ export async function POST(
     return NextResponse.json({ error: "Quiz is not active" }, { status: 403 });
   }
 
+  // Non-prerequisite quizzes require user to be qualified
+  if (!quiz.isPrerequisite) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isQualified: true },
+    });
+    if (!user?.isQualified) {
+      return NextResponse.json(
+        { error: "You must pass the prerequisite quiz first" },
+        { status: 403 }
+      );
+    }
+  }
+
   const existingAttempt = await prisma.attempt.findUnique({
     where: { quizId_userId: { quizId, userId: session.user.id } },
     include: { answers: true },
   });
 
   if (existingAttempt?.isComplete) {
+    // Allow retry for prerequisite quizzes if user hasn't qualified yet
+    if (quiz.isPrerequisite) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { isQualified: true },
+      });
+      if (!user?.isQualified) {
+        // Delete old attempt and answers to allow retry
+        await prisma.answer.deleteMany({ where: { attemptId: existingAttempt.id } });
+        await prisma.attempt.delete({ where: { id: existingAttempt.id } });
+        const newAttempt = await prisma.attempt.create({
+          data: { quizId, userId: session.user.id },
+          include: { answers: true },
+        });
+        return NextResponse.json({
+          attemptId: newAttempt.id,
+          nextQuestionIndex: 0,
+          questions: quiz.questions.map((q) => ({
+            id: q.id,
+            questionText: q.questionText,
+            answerType: q.answerType,
+            orderIndex: q.orderIndex,
+          })),
+          serverTimestamp: new Date().toISOString(),
+          existingAnswers: [],
+        });
+      }
+    }
     return NextResponse.json({ error: "Already completed" }, { status: 403 });
   }
 

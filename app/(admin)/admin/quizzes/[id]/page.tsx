@@ -3,6 +3,12 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
+import { EditTimes } from "./edit-times";
+import { QuizQuestions } from "./quiz-questions";
+import { QuizSubmissions } from "./quiz-submissions";
+import { DeleteQuiz } from "./delete-quiz";
+
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || "mahanaimype@gmail.com";
 
 export default async function EditQuizPage({
   params,
@@ -10,7 +16,7 @@ export default async function EditQuizPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "admin") redirect("/");
+  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "quizmaster")) redirect("/");
 
   const { id: quizId } = await params;
 
@@ -20,7 +26,10 @@ export default async function EditQuizPage({
       questions: { orderBy: { orderIndex: "asc" } },
       attempts: {
         where: { isComplete: true },
-        include: { user: { select: { name: true, email: true } } },
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+          answers: { select: { id: true, submittedText: true, isCorrect: true, questionId: true } },
+        },
         orderBy: { completedAt: "asc" },
       },
     },
@@ -74,63 +83,50 @@ export default async function EditQuizPage({
           </div>
         </div>
 
-        {/* Questions */}
-        <section>
-          <h2 className="text-lg font-semibold mb-3">Questions</h2>
-          <div className="space-y-3">
-            {quiz.questions.map((q, i) => (
-              <div
-                key={q.id}
-                className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-              >
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Q{i + 1} ({q.answerType})
-                </p>
-                <p className="font-medium mt-1">{q.questionText}</p>
-                <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                  Answers: {q.acceptedAnswers.join(", ")}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <EditTimes
+          quizId={quizId}
+          startTime={quiz.startTime.toISOString()}
+          endTime={quiz.endTime.toISOString()}
+        />
 
-        {/* Submissions */}
-        {quiz.attempts.length > 0 && (
-          <section>
-            <h2 className="text-lg font-semibold mb-3">Submissions</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700">
-                    <th className="text-left py-2 px-2 font-medium text-slate-500">Name</th>
-                    <th className="text-left py-2 px-2 font-medium text-slate-500">Email</th>
-                    <th className="text-left py-2 px-2 font-medium text-slate-500">Completed</th>
-                    {isEnded && quiz.resultsProcessed && (
-                      <th className="text-left py-2 px-2 font-medium text-slate-500">Score</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {quiz.attempts.map((a) => (
-                    <tr key={a.id} className="border-b border-slate-100 dark:border-slate-800">
-                      <td className="py-2 px-2">{a.user.name || "—"}</td>
-                      <td className="py-2 px-2">{a.user.email}</td>
-                      <td className="py-2 px-2">
-                        {a.completedAt?.toLocaleString() || "—"}
-                      </td>
-                      {isEnded && quiz.resultsProcessed && (
-                        <td className="py-2 px-2 font-medium">
-                          {Number(a.rawScore ?? 0) + Number(a.bonusPoints ?? 0)}
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+        {/* Questions - inline editable */}
+        <QuizQuestions
+          quizId={quizId}
+          questions={quiz.questions.map((q) => ({
+            id: q.id,
+            questionText: q.questionText,
+            answerType: q.answerType,
+            acceptedAnswers: q.acceptedAnswers,
+            orderIndex: q.orderIndex,
+          }))}
+        />
+
+        {/* Submissions - expandable with answer editing */}
+        <QuizSubmissions
+          quizId={quizId}
+          submissions={quiz.attempts.map((a) => ({
+            attemptId: a.id,
+            userId: a.user.id,
+            userName: a.user.name || "",
+            userEmail: a.user.email,
+            userImage: a.user.image,
+            completedAt: a.completedAt?.toISOString() || "",
+            rawScore: Number(a.rawScore ?? 0),
+            bonusPoints: Number(a.bonusPoints ?? 0),
+            answers: a.answers.map((ans) => ({
+              id: ans.id,
+              submittedText: ans.submittedText,
+              isCorrect: ans.isCorrect,
+              questionId: ans.questionId,
+            })),
+          }))}
+          questions={quiz.questions.map((q) => ({
+            id: q.id,
+            questionText: q.questionText,
+            acceptedAnswers: q.acceptedAnswers,
+            orderIndex: q.orderIndex,
+          }))}
+        />
 
         {isEnded && (
           <Link
@@ -139,6 +135,10 @@ export default async function EditQuizPage({
           >
             View Disputes
           </Link>
+        )}
+
+        {session.user.email === SUPER_ADMIN_EMAIL && (
+          <DeleteQuiz quizId={quizId} quizTitle={quiz.title} />
         )}
       </main>
     </div>

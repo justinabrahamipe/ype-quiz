@@ -11,8 +11,12 @@ export async function middleware(req: NextRequest) {
     if (!token) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
-    if (token.role !== "admin") {
+    if (token.role !== "admin" && token.role !== "quizmaster") {
       return NextResponse.redirect(new URL("/", req.url));
+    }
+    // Quizmasters can only access quiz-related admin pages
+    if (token.role === "quizmaster" && (pathname === "/admin/users" || pathname.includes("/disputes"))) {
+      return NextResponse.redirect(new URL("/admin", req.url));
     }
   }
 

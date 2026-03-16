@@ -16,35 +16,112 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(users);
+  // Sort: super admin first, then admins, then quizmasters, then users
+  const roleOrder: Record<string, number> = { admin: 0, quizmaster: 1, user: 2 };
+  const sorted = [...users].sort((a, b) => {
+    if (a.email === SUPER_ADMIN_EMAIL) return -1;
+    if (b.email === SUPER_ADMIN_EMAIL) return 1;
+    const ra = roleOrder[a.role] ?? 2;
+    const rb = roleOrder[b.role] ?? 2;
+    return ra - rb;
+  });
+
+  return NextResponse.json(sorted);
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id || session.user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { user_id, action } = body;
+
+  if (!user_id) {
+    return NextResponse.json({ error: "user_id required" }, { status: 400 });
   }
 
-  const { user_id, role } = await req.json();
-
-  if (!user_id || !["admin", "user"].includes(role)) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-  }
-
-  // Cannot demote super admin
   const targetUser = await prisma.user.findUnique({ where: { id: user_id } });
   if (!targetUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  if (targetUser.email === SUPER_ADMIN_EMAIL && role === "user") {
-    return NextResponse.json({ error: "Cannot demote super admin" }, { status: 403 });
+  // Toggle role
+  if (action === "toggle_role" || body.role) {
+    const role = body.role || (targetUser.role === "admin" ? "user" : "admin");
+    if (!["admin", "user", "quizmaster"].includes(role)) {
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+    }
+    if (targetUser.email === SUPER_ADMIN_EMAIL && role === "user") {
+      return NextResponse.json({ error: "Cannot demote super admin" }, { status: 403 });
+    }
+    await prisma.user.update({
+      where: { id: user_id },
+      data: { role: role as Role },
+    });
+    return NextResponse.json({ updated: true, field: "role" });
   }
 
-  await prisma.user.update({
-    where: { id: user_id },
-    data: { role: role as Role },
-  });
+  // Toggle qualification
+  if (action === "toggle_qualified") {
+    await prisma.user.update({
+      where: { id: user_id },
+      data: { isQualified: !targetUser.isQualified },
+    });
+    return NextResponse.json({ updated: true, field: "isQualified", value: !targetUser.isQualified });
+  }
 
-  return NextResponse.json({ updated: true });
+  // Edit score
+  if (action === "set_score") {
+    const { score } = body;
+    if (score === undefined || isNaN(Number(score))) {
+      return NextResponse.json({ error: "Valid score required" }, { status: 400 });
+    }
+
+    await prisma.overallScore.upsert({
+      where: { userId: user_id },
+      update: { totalScore: Number(score) },
+      create: { userId: user_id, totalScore: Number(score) },
+    });
+    return NextResponse.json({ updated: true, field: "score" });
+  }
+
+  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  } catch (err) {
+    console.error("PATCH /api/admin/users error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id || session.user.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  const { user_id } = await req.json();
+  if (!user_id) {
+    return NextResponse.json({ error: "user_id required" }, { status: 400 });
+  }
+
+  const targetUser = await prisma.user.findUnique({ where: { id: user_id } });
+  if (!targetUser) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  if (targetUser.email === SUPER_ADMIN_EMAIL) {
+    return NextResponse.json({ error: "Cannot delete super admin" }, { status: 403 });
+  }
+
+  // Delete in order: disputes, answers, attempts, overallScore, then user
+  await prisma.dispute.deleteMany({ where: { userId: user_id } });
+  await prisma.dispute.deleteMany({ where: { resolvedById: user_id } });
+  await prisma.answer.deleteMany({ where: { attempt: { userId: user_id } } });
+  await prisma.attempt.deleteMany({ where: { userId: user_id } });
+  await prisma.overallScore.deleteMany({ where: { userId: user_id } });
+  await prisma.user.delete({ where: { id: user_id } });
+
+  return NextResponse.json({ deleted: true });
 }

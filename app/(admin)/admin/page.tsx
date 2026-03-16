@@ -6,7 +6,8 @@ import { Header } from "@/components/header";
 
 export default async function AdminDashboard() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "admin") redirect("/");
+  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "quizmaster")) redirect("/");
+  const isAdmin = session.user.role === "admin";
 
   const now = new Date();
 
@@ -61,12 +62,14 @@ export default async function AdminDashboard() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             Create Quiz
           </Link>
-          <Link
-            href="/admin/users"
-            className="px-5 py-2.5 rounded-xl text-sm font-medium border border-[var(--card-border)] bg-[var(--card)] hover:bg-[var(--surface)] transition-colors"
-          >
-            Manage Users
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/admin/users"
+              className="px-5 py-2.5 rounded-xl text-sm font-medium border border-[var(--card-border)] bg-[var(--card)] hover:bg-[var(--surface)] transition-colors"
+            >
+              Manage Users
+            </Link>
+          )}
         </div>
 
         {/* Quiz Table */}

@@ -10,8 +10,15 @@ const geistSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "BibleQuiz",
-  description: "Mahanaimype Church Bible Quiz Platform",
+  title: "Mahanaim Bible Quiz",
+  description: "Mahanaim Church YPE Bible Quiz Platform",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/favicon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

@@ -4,74 +4,166 @@ import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "@/lib/theme";
 import Link from "next/link";
 import Image from "next/image";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
+import IconButton from "@mui/material/IconButton";
+import Avatar from "@mui/material/Avatar";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
+import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
+import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
+import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
+import { usePathname } from "next/navigation";
 
 export function Header() {
   const { data: session } = useSession();
   const { theme, toggleTheme } = useTheme();
+  const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--card-border)] bg-[var(--card)]/80 glass">
-      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="text-lg font-bold gradient-text">
-          BibleQuiz
-        </Link>
+    <AppBar
+      position="sticky"
+      elevation={0}
+      sx={{
+        bgcolor: "background.paper",
+        borderBottom: "1px solid",
+        borderColor: "divider",
+        backdropFilter: "blur(12px)",
+        backgroundColor: (t) =>
+          t.palette.mode === "dark"
+            ? "rgba(20, 24, 40, 0.85)"
+            : "rgba(255, 255, 255, 0.85)",
+      }}
+    >
+      <Toolbar sx={{ maxWidth: 900, width: "100%", mx: "auto", px: { xs: 1, sm: 2 }, minHeight: "56px !important" }}>
+        {/* Logo */}
+        <Box
+          component={Link}
+          href="/"
+          sx={{ display: "flex", alignItems: "center", gap: 1, textDecoration: "none", mr: 3 }}
+        >
+          <Image src="/logo.png" alt="Mahanaim" width={28} height={28} />
+          <Typography
+            variant="h6"
+            sx={{
+              background: "linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              fontSize: "1rem",
+              display: { xs: "none", sm: "block" },
+            }}
+          >
+            Mahanaim Bible Quiz
+          </Typography>
+        </Box>
 
-        <div className="flex items-center gap-2">
-          <button
+        {/* Desktop nav links */}
+        <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", gap: 0.5, flexGrow: 1 }}>
+          <Button
+            component={Link}
+            href="/"
+            size="small"
+            startIcon={<QuizRoundedIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              color: pathname === "/" ? "primary.main" : "text.secondary",
+              fontWeight: pathname === "/" ? 600 : 400,
+              fontSize: "0.8rem",
+            }}
+          >
+            Quizzes
+          </Button>
+          <Button
+            component={Link}
+            href="/you"
+            size="small"
+            startIcon={<PersonRoundedIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              color: pathname === "/you" ? "primary.main" : "text.secondary",
+              fontWeight: pathname === "/you" ? 600 : 400,
+              fontSize: "0.8rem",
+            }}
+          >
+            You
+          </Button>
+          <Button
+            component={Link}
+            href="/members"
+            size="small"
+            startIcon={<PeopleRoundedIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              color: pathname === "/members" ? "primary.main" : "text.secondary",
+              fontWeight: pathname === "/members" ? 600 : 400,
+              fontSize: "0.8rem",
+            }}
+          >
+            Members
+          </Button>
+        </Box>
+
+        {/* Spacer for mobile */}
+        <Box sx={{ flexGrow: 1, display: { xs: "block", md: "none" } }} />
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <IconButton
             onClick={toggleTheme}
-            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-[var(--accent-soft)] transition-colors"
-            aria-label="Toggle theme"
+            size="small"
+            sx={{ color: "primary.main" }}
           >
             {theme === "dark" ? (
-              <svg className="w-[18px] h-[18px] text-[var(--accent-light)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
+              <LightModeRoundedIcon fontSize="small" />
             ) : (
-              <svg className="w-[18px] h-[18px] text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
+              <DarkModeRoundedIcon fontSize="small" />
             )}
-          </button>
+          </IconButton>
 
-          {session?.user?.role === "admin" && (
-            <Link
+          {(session?.user?.role === "admin" || session?.user?.role === "quizmaster") && (
+            <Chip
+              component={Link}
               href="/admin"
-              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--accent-soft)] text-[var(--accent)] hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
-            >
-              Admin
-            </Link>
+              label={session?.user?.role === "quizmaster" ? "Quizmaster" : "Admin"}
+              size="small"
+              color="primary"
+              variant="outlined"
+              clickable
+              sx={{ fontSize: "0.7rem", height: 26 }}
+            />
           )}
 
           {session?.user && (
-            <div className="flex items-center gap-2 ml-1">
-              {session.user.image && (
-                <Image
-                  src={session.user.image}
-                  alt=""
-                  width={30}
-                  height={30}
-                  className="rounded-full ring-2 ring-[var(--card-border)]"
-                />
-              )}
-              <button
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 0.5 }}>
+              <Avatar
+                src={session.user.image || undefined}
+                alt={session.user.name || ""}
+                sx={{ width: 30, height: 30, border: "2px solid", borderColor: "divider" }}
+              />
+              <IconButton
                 onClick={() => signOut()}
-                className="text-xs text-[var(--muted)] hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                size="small"
+                sx={{ color: "text.secondary" }}
               >
-                Sign out
-              </button>
-            </div>
+                <LogoutRoundedIcon fontSize="small" />
+              </IconButton>
+            </Box>
           )}
 
           {!session?.user && (
-            <Link
+            <Button
+              component={Link}
               href="/login"
-              className="btn-primary text-xs !py-1.5 !px-4"
+              variant="contained"
+              size="small"
+              sx={{ fontSize: "0.75rem" }}
             >
               Sign in
-            </Link>
+            </Button>
           )}
-        </div>
-      </div>
-    </header>
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 }

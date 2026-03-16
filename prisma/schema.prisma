@@ -10,6 +10,7 @@ datasource db {
 
 enum Role {
   user
+  quizmaster
   admin
 }
 
@@ -30,6 +31,7 @@ model User {
   name           String?
   image          String?
   role           Role          @default(user)
+  isQualified    Boolean       @default(false)
   createdAt      DateTime      @default(now())
   attempts       Attempt[]
   disputes       Dispute[]
@@ -45,6 +47,7 @@ model Quiz {
   startTime        DateTime
   endTime          DateTime
   questionCount    Int
+  isPrerequisite   Boolean    @default(false)
   createdBy        String
   creator          User       @relation(fields: [createdBy], references: [id])
   createdAt        DateTime   @default(now())
