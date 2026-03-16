@@ -32,21 +32,21 @@ export default async function AdminDashboard() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold gradient-text">Admin Dashboard</h1>
 
         {/* Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Total Users</p>
-            <p className="text-2xl font-bold mt-1">{totalUsers}</p>
+          <div className="card p-5 gradient-card">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Total Users</p>
+            <p className="text-3xl font-bold mt-2 gradient-text">{totalUsers}</p>
           </div>
-          <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Total Quizzes</p>
-            <p className="text-2xl font-bold mt-1">{totalQuizzes}</p>
+          <div className="card p-5 gradient-card">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Total Quizzes</p>
+            <p className="text-3xl font-bold mt-2 gradient-text">{totalQuizzes}</p>
           </div>
-          <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <p className="text-sm text-slate-500 dark:text-slate-400">Active Quiz</p>
-            <p className="text-lg font-bold mt-1 truncate">
+          <div className="card p-5 gradient-card">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Active Quiz</p>
+            <p className="text-lg font-bold mt-2 truncate">
               {activeQuiz?.title || "None"}
             </p>
           </div>
@@ -56,33 +56,34 @@ export default async function AdminDashboard() {
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/quizzes/new"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+            className="btn-primary inline-flex items-center gap-2"
           >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             Create Quiz
           </Link>
           <Link
             href="/admin/users"
-            className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700"
+            className="px-5 py-2.5 rounded-xl text-sm font-medium border border-[var(--card-border)] bg-[var(--card)] hover:bg-[var(--surface)] transition-colors"
           >
             Manage Users
           </Link>
         </div>
 
         {/* Quiz Table */}
-        <div className="overflow-x-auto">
+        <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700">
-                <th className="text-left py-3 px-2 font-medium text-slate-500 dark:text-slate-400">
+              <tr className="border-b border-[var(--card-border)]">
+                <th className="text-left py-3.5 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                   Title
                 </th>
-                <th className="text-left py-3 px-2 font-medium text-slate-500 dark:text-slate-400">
+                <th className="text-left py-3.5 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                   Status
                 </th>
-                <th className="text-left py-3 px-2 font-medium text-slate-500 dark:text-slate-400">
+                <th className="text-left py-3.5 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                   Attempts
                 </th>
-                <th className="text-left py-3 px-2 font-medium text-slate-500 dark:text-slate-400">
+                <th className="text-left py-3.5 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
                   Actions
                 </th>
               </tr>
@@ -93,34 +94,34 @@ export default async function AdminDashboard() {
                 return (
                   <tr
                     key={quiz.id}
-                    className="border-b border-slate-100 dark:border-slate-800"
+                    className="border-b border-[var(--card-border)] last:border-0 hover:bg-[var(--surface)] transition-colors"
                   >
-                    <td className="py-3 px-2">{quiz.title}</td>
-                    <td className="py-3 px-2">
+                    <td className="py-3.5 px-5 font-medium">{quiz.title}</td>
+                    <td className="py-3.5 px-5">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
                           status === "Active"
-                            ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
                             : status === "Upcoming"
-                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                            ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                            : "bg-[var(--surface)] text-[var(--muted)]"
                         }`}
                       >
                         {status}
                       </span>
                     </td>
-                    <td className="py-3 px-2">{quiz._count.attempts}</td>
-                    <td className="py-3 px-2 space-x-2">
+                    <td className="py-3.5 px-5 tabular-nums">{quiz._count.attempts}</td>
+                    <td className="py-3.5 px-5 space-x-3">
                       <Link
                         href={`/admin/quizzes/${quiz.id}`}
-                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                        className="text-[var(--accent)] hover:underline font-medium"
                       >
                         View
                       </Link>
                       {status === "Ended" && (
                         <Link
                           href={`/admin/quizzes/${quiz.id}/disputes`}
-                          className="text-amber-600 dark:text-amber-400 hover:underline"
+                          className="text-amber-600 dark:text-amber-400 hover:underline font-medium"
                         >
                           Disputes
                         </Link>

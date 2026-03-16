@@ -40,12 +40,12 @@ export function Toaster() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className={`px-4 py-3 rounded-lg shadow-lg text-white text-sm animate-slide-up ${
+          className={`px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium animate-slide-up backdrop-blur-sm ${
             t.type === "success"
-              ? "bg-green-600"
+              ? "bg-emerald-600/90"
               : t.type === "error"
-              ? "bg-red-600"
-              : "bg-blue-600"
+              ? "bg-red-600/90"
+              : "bg-indigo-600/90"
           }`}
         >
           {t.message}
