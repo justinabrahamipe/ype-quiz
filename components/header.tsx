@@ -51,11 +51,10 @@ export function Header() {
           <Typography
             variant="h6"
             sx={{
-              background: "linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              fontSize: "1rem",
+              color: "primary.main",
+              fontSize: "0.95rem",
               display: { xs: "none", sm: "block" },
+              letterSpacing: "-0.01em",
             }}
           >
             Mahanaim Bible Quiz

@@ -113,7 +113,7 @@ export default function UserDetailPage() {
           </IconButton>
           <Avatar
             src={user.image || undefined}
-            sx={{ width: 48, height: 48, background: !user.image ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : undefined }}
+            sx={{ width: 48, height: 48, bgcolor: !user.image ? "primary.main" : undefined }}
           >
             {!user.image && (user.name || "?")[0].toUpperCase()}
           </Avatar>

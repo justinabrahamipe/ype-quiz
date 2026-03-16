@@ -45,7 +45,7 @@ export function YouContent(props: Props) {
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", px: { xs: 1.5, sm: 3 }, py: 3, pb: 12, display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Profile Card */}
-      <Card elevation={0} sx={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.06))" }}>
+      <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
         <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, py: 3 }}>
           <Avatar
             src={image || undefined}
@@ -53,7 +53,7 @@ export function YouContent(props: Props) {
               width: 64,
               height: 64,
               fontSize: "1.5rem",
-              background: !image ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : undefined,
+              bgcolor: !image ? "primary.main" : undefined,
               border: "3px solid",
               borderColor: "primary.main",
             }}
@@ -85,7 +85,7 @@ export function YouContent(props: Props) {
         <Card elevation={0}>
           <CardContent sx={{ textAlign: "center" }}>
             <EmojiEventsRoundedIcon sx={{ color: "#f59e0b", fontSize: 28, mb: 0.5 }} />
-            <Typography variant="h4" fontWeight={700} className="gradient-text">
+            <Typography variant="h4" fontWeight={700} sx={{ color: "primary.main" }}>
               {rank > 0 ? `#${rank}` : "—"}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -96,7 +96,7 @@ export function YouContent(props: Props) {
         <Card elevation={0}>
           <CardContent sx={{ textAlign: "center" }}>
             <TrendingUpRoundedIcon sx={{ color: "primary.main", fontSize: 28, mb: 0.5 }} />
-            <Typography variant="h4" fontWeight={700} className="gradient-text">
+            <Typography variant="h4" fontWeight={700} sx={{ color: "primary.main" }}>
               {totalScore}
             </Typography>
             <Typography variant="caption" color="text.secondary">Total Points</Typography>
@@ -136,7 +136,7 @@ export function YouContent(props: Props) {
                   borderRadius: 6,
                   bgcolor: "action.hover",
                   "& .MuiLinearProgress-bar": {
-                    background: "linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7)",
+                    bgcolor: "primary.main",
                     borderRadius: 6,
                   },
                 }}

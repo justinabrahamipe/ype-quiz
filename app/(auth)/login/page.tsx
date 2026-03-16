@@ -1,13 +1,12 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Image from "next/image";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import Avatar from "@mui/material/Avatar";
-import AutoStoriesRoundedIcon from "@mui/icons-material/AutoStoriesRounded";
 
 export default function LoginPage() {
   return (
@@ -22,28 +21,15 @@ export default function LoginPage() {
       }}
     >
       <Box sx={{ width: "100%", maxWidth: 380, textAlign: "center" }} className="animate-fade-in">
-        <Avatar
-          sx={{
-            mx: "auto",
-            mb: 2,
-            width: 64,
-            height: 64,
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-            boxShadow: "0 8px 24px rgba(99, 102, 241, 0.3)",
-          }}
-        >
-          <AutoStoriesRoundedIcon sx={{ fontSize: 32 }} />
-        </Avatar>
+        <Image
+          src="/logo.png"
+          alt="Mahanaim"
+          width={72}
+          height={72}
+          style={{ margin: "0 auto 16px" }}
+        />
 
-        <Typography
-          variant="h4"
-          sx={{
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            mb: 0.5,
-          }}
-        >
+        <Typography variant="h5" sx={{ color: "text.primary", mb: 0.5 }}>
           Mahanaim Bible Quiz
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>

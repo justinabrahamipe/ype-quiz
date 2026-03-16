@@ -102,7 +102,7 @@ export function QuizSubmissions({
                     width: 32,
                     height: 32,
                     fontSize: "0.8rem",
-                    background: !sub.userImage ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : undefined,
+                    bgcolor: !sub.userImage ? "primary.main" : undefined,
                   }}
                 >
                   {!sub.userImage && (sub.userName || "?")[0].toUpperCase()}

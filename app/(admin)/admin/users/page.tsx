@@ -188,7 +188,7 @@ export default function ManageUsersPage() {
                       src={user.image || undefined}
                       sx={{
                         width: 36, height: 36,
-                        background: !user.image ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : undefined,
+                        bgcolor: !user.image ? "primary.main" : undefined,
                         fontSize: "0.85rem",
                       }}
                     >

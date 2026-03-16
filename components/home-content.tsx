@@ -57,12 +57,12 @@ export function HomeContent(props: Props) {
     <Box sx={{ maxWidth: 900, mx: "auto", px: { xs: 1.5, sm: 3 }, py: 3, pb: 12, display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Guest Banner */}
       {!isLoggedIn && (
-        <Card elevation={0} sx={{ background: "linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.08))" }}>
+        <Card elevation={0}>
           <CardContent sx={{ textAlign: "center", py: 4 }}>
-            <Avatar sx={{ mx: "auto", mb: 2, width: 52, height: 52, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 8px 24px rgba(99,102,241,0.25)" }}>
+            <Avatar sx={{ mx: "auto", mb: 2, width: 52, height: 52, bgcolor: "primary.main" }}>
               <AutoStoriesRoundedIcon />
             </Avatar>
-            <Typography variant="h6" gutterBottom>Welcome to BibleQuiz</Typography>
+            <Typography variant="h6" gutterBottom>Welcome to Mahanaim Bible Quiz</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
               Test your Bible knowledge and compete with your church
             </Typography>
@@ -78,18 +78,18 @@ export function HomeContent(props: Props) {
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <EditName currentName={userName} />
           <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-            <Card elevation={0} sx={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.06))" }}>
+            <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
               <CardContent>
                 <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Your Rank</Typography>
-                <Typography variant="h4" className="gradient-text" sx={{ mt: 0.5 }}>
+                <Typography variant="h4" sx={{ color: "primary.main", mt: 0.5 }}>
                   {userRank > 0 ? `#${userRank}` : "—"}
                 </Typography>
               </CardContent>
             </Card>
-            <Card elevation={0} sx={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.06))" }}>
+            <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
               <CardContent>
                 <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Total Score</Typography>
-                <Typography variant="h4" className="gradient-text" sx={{ mt: 0.5 }}>
+                <Typography variant="h4" sx={{ color: "primary.main", mt: 0.5 }}>
                   {userScore}
                 </Typography>
               </CardContent>
