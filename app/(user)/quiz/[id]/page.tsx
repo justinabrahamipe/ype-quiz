@@ -14,6 +14,8 @@ type Question = {
 type ExistingAnswer = {
   questionId: string;
   submittedText: string | null;
+  answeredAt: string | null;
+  timeTakenSeconds: number | null;
 };
 
 export default function QuizAttemptPage() {
@@ -28,6 +30,7 @@ export default function QuizAttemptPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [existingAnswers, setExistingAnswers] = useState<Map<string, string>>(new Map());
+  const [timeSpent, setTimeSpent] = useState<Map<string, number>>(new Map());
 
   const questionStartRef = useRef<string>(new Date().toISOString());
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -35,46 +38,73 @@ export default function QuizAttemptPage() {
 
   // Start the quiz
   useEffect(() => {
-    fetch(`/api/quiz/${quizId}/start`, { method: "POST" })
-      .then(async (r) => {
+    let cancelled = false;
+
+    const startQuiz = async (retries = 2) => {
+      try {
+        const r = await fetch(`/api/quiz/${quizId}/start`, { method: "POST" });
         if (!r.ok) {
+          if (r.status === 401 && retries > 0) {
+            // Session not ready yet — retry after short delay
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            if (!cancelled) return startQuiz(retries - 1);
+            return;
+          }
           const err = await r.json().catch(() => ({ error: "Failed to start quiz" }));
-          toast(err.error || "Cannot start quiz", "error");
-          setTimeout(() => router.push("/"), 1500);
-          return null;
+          if (!cancelled) {
+            toast(err.error || "Cannot start quiz", "error");
+            setTimeout(() => router.push("/"), 1500);
+          }
+          return;
         }
-        return r.json();
-      })
-      .then((data) => {
-        if (!data) return;
-        setQuestions(data.questions);
-        setAttemptId(data.attemptId);
-        setCurrentIndex(data.nextQuestionIndex);
-        setExistingAnswers(
-          new Map(data.existingAnswers.map((a: ExistingAnswer) => [a.questionId, a.submittedText || ""]))
-        );
-        setLoading(false);
-      })
-      .catch(() => {
-        toast("Failed to load quiz", "error");
-        setTimeout(() => router.push("/"), 1500);
-      });
+        const data = await r.json();
+        if (!cancelled) {
+          setQuestions(data.questions);
+          setAttemptId(data.attemptId);
+          setCurrentIndex(data.nextQuestionIndex);
+          setExistingAnswers(
+            new Map(data.existingAnswers.map((a: ExistingAnswer) => [a.questionId, a.submittedText || ""]))
+          );
+          setTimeSpent(
+            new Map(data.existingAnswers
+              .filter((a: ExistingAnswer) => a.timeTakenSeconds != null)
+              .map((a: ExistingAnswer) => [a.questionId, a.timeTakenSeconds as number]))
+          );
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          if (retries > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            if (!cancelled) return startQuiz(retries - 1);
+          } else {
+            toast("Failed to load quiz", "error");
+            setTimeout(() => router.push("/"), 1500);
+          }
+        }
+      }
+    };
+
+    startQuiz();
+    return () => { cancelled = true; };
   }, [quizId, router]);
 
   // Reset timer when question changes
   useEffect(() => {
     if (loading) return;
-    setTimeLeft(120);
     questionStartRef.current = new Date().toISOString();
 
-    // Check if this question already has an answer
     const q = questions[currentIndex];
     if (q && existingAnswers.has(q.id)) {
       setAnswer(existingAnswers.get(q.id) || "");
+      // Already answered — calculate remaining time
+      const spent = timeSpent.get(q.id) || 0;
+      setTimeLeft(Math.max(0, 120 - spent));
     } else {
       setAnswer("");
+      setTimeLeft(120);
     }
-  }, [currentIndex, loading, questions, existingAnswers]);
+  }, [currentIndex, loading, questions, existingAnswers, timeSpent]);
 
   // Timer countdown
   useEffect(() => {
@@ -187,7 +217,6 @@ export default function QuizAttemptPage() {
   if (!currentQuestion) return null;
 
   const isLast = currentIndex >= questions.length - 1;
-  const isPreviousQuestion = (idx: number) => idx < currentIndex;
 
   // Timer ring colors
   const timerColor =
@@ -260,57 +289,24 @@ export default function QuizAttemptPage() {
         </div>
 
         {/* Answer input */}
-        {existingAnswers.has(currentQuestion.id) &&
-        isPreviousQuestion(currentIndex) ? (
-          <div className="relative">
-            <input
-              type="text"
-              value={existingAnswers.get(currentQuestion.id) || ""}
-              disabled
-              className="w-full px-4 py-4 text-lg rounded-xl bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500"
-            />
-            <svg
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              />
-            </svg>
-          </div>
-        ) : (
-          <div>
-            <input
-              type={currentQuestion.answerType === "number" ? "number" : "text"}
-              value={answer}
-              onChange={(e) => handleInputChange(e.target.value)}
-              placeholder="Type your answer here..."
-              autoFocus
-              className="w-full px-4 py-4 text-lg rounded-xl bg-white dark:bg-slate-800 border-2 border-blue-300 dark:border-blue-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors"
-            />
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-              {currentQuestion.answerType === "number"
-                ? "Enter a number (exact)"
-                : "Single word answer"}
-            </p>
-          </div>
-        )}
+        <div>
+          <input
+            type={currentQuestion.answerType === "number" ? "number" : "text"}
+            value={answer}
+            onChange={(e) => handleInputChange(e.target.value)}
+            placeholder="Type your answer here..."
+            autoFocus
+            className="w-full px-4 py-4 text-lg rounded-xl bg-white dark:bg-slate-800 border-2 border-blue-300 dark:border-blue-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors"
+          />
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+            {currentQuestion.answerType === "number"
+              ? "Enter a number (exact)"
+              : "Single word answer"}
+          </p>
+        </div>
 
         {/* Navigation */}
         <div className="flex gap-3">
-          {currentIndex > 0 && (
-            <button
-              onClick={() => setCurrentIndex((prev) => prev - 1)}
-              className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-            >
-              Back
-            </button>
-          )}
           <button
             onClick={handleNext}
             disabled={submitting}
@@ -320,7 +316,7 @@ export default function QuizAttemptPage() {
               ? "Submitting..."
               : isLast
               ? "Submit Quiz"
-              : "Next"}
+              : "Skip"}
           </button>
         </div>
       </div>

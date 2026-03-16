@@ -102,7 +102,7 @@ export default async function ResultsPage({
                 Correct: {ans.question.acceptedAnswers.join(", ")}
               </p>
 
-              {!ans.isCorrect && !ans.dispute && (
+              {!ans.dispute && (
                 <DisputeButton answerId={ans.id} />
               )}
               {ans.dispute && (

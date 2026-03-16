@@ -86,11 +86,19 @@ export async function POST(
     });
   }
 
+  // Shuffle questions deterministically per user (seed = visitorId + quizId)
+  const seed = (session.user.id + quizId).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const shuffled = [...quiz.questions];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = (seed * (i + 1) * 2654435761) % (i + 1);
+    [shuffled[i], shuffled[Math.abs(j)]] = [shuffled[Math.abs(j)], shuffled[i]];
+  }
+
   // Find first unanswered question index
   const answeredQuestionIds = new Set(attempt.answers.map((a) => a.questionId));
   let nextIndex = 0;
-  for (let i = 0; i < quiz.questions.length; i++) {
-    if (!answeredQuestionIds.has(quiz.questions[i].id)) {
+  for (let i = 0; i < shuffled.length; i++) {
+    if (!answeredQuestionIds.has(shuffled[i].id)) {
       nextIndex = i;
       break;
     }
@@ -99,7 +107,7 @@ export async function POST(
   return NextResponse.json({
     attemptId: attempt.id,
     nextQuestionIndex: nextIndex,
-    questions: quiz.questions.map((q) => ({
+    questions: shuffled.map((q) => ({
       id: q.id,
       questionText: q.questionText,
       answerType: q.answerType,
@@ -109,6 +117,8 @@ export async function POST(
     existingAnswers: attempt.answers.map((a) => ({
       questionId: a.questionId,
       submittedText: a.submittedText,
+      answeredAt: a.answeredAt?.toISOString() || null,
+      timeTakenSeconds: a.timeTakenSeconds,
     })),
   });
 }

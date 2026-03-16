@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
+import { DisputeButton } from "../results/dispute-button";
 
 export default async function SubmittedPage({
   params,
@@ -26,7 +27,7 @@ export default async function SubmittedPage({
     where: { quizId_userId: { quizId, userId: session.user.id } },
     include: {
       answers: {
-        include: { question: true },
+        include: { question: true, dispute: true },
         orderBy: { question: { orderIndex: "asc" } },
       },
     },
@@ -108,6 +109,14 @@ export default async function SubmittedPage({
                 {wrong && (
                   <p className="mt-1 text-sm text-emerald-600 dark:text-emerald-400">
                     Correct: {ans.question.acceptedAnswers[0]}
+                  </p>
+                )}
+                {!ans.dispute && (
+                  <DisputeButton answerId={ans.id} />
+                )}
+                {ans.dispute && (
+                  <p className="text-xs mt-2 text-[var(--muted)]">
+                    Dispute {ans.dispute.status}
                   </p>
                 )}
               </div>

@@ -52,8 +52,7 @@ export function Header() {
             variant="h6"
             sx={{
               color: "primary.main",
-              fontSize: "0.95rem",
-              display: { xs: "none", sm: "block" },
+              fontSize: { xs: "0.85rem", sm: "0.95rem" },
               letterSpacing: "-0.01em",
             }}
           >
