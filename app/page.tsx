@@ -3,14 +3,10 @@ import { prisma } from "@/lib/db";
 import { Header } from "@/components/header";
 import Link from "next/link";
 import { Countdown } from "@/components/countdown";
-import { redirect } from "next/navigation";
 
 export default async function Home() {
   const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
+  const userId = session?.user?.id;
 
   const now = new Date();
 
@@ -25,10 +21,12 @@ export default async function Home() {
       orderBy: { totalScore: "desc" },
       take: 10,
     }),
-    prisma.attempt.findMany({
-      where: { userId: session.user.id },
-      select: { quizId: true, isComplete: true },
-    }),
+    userId
+      ? prisma.attempt.findMany({
+          where: { userId },
+          select: { quizId: true, isComplete: true },
+        })
+      : [],
   ]);
 
   const attemptMap = new Map(
@@ -41,35 +39,53 @@ export default async function Home() {
   const upcomingQuizzes = quizzes.filter((q) => now < q.startTime);
   const pastQuizzes = quizzes.filter((q) => now > q.endTime);
 
-  const userRank =
-    leaderboard.findIndex((s) => s.userId === session.user.id) + 1;
-  const userScore = leaderboard.find(
-    (s) => s.userId === session.user.id
-  );
+  const userRank = userId
+    ? leaderboard.findIndex((s) => s.userId === userId) + 1
+    : 0;
+  const userScore = userId
+    ? leaderboard.find((s) => s.userId === userId)
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-8">
-        {/* User Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Your Rank
-            </p>
-            <p className="text-2xl font-bold mt-1">
-              {userRank > 0 ? `#${userRank}` : "—"}
-            </p>
-          </div>
-          <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Total Score
-            </p>
-            <p className="text-2xl font-bold mt-1">
-              {userScore ? Number(userScore.totalScore) : 0}
+        {/* Sign in prompt for guests */}
+        {!userId && (
+          <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-center">
+            <p className="text-sm text-slate-700 dark:text-slate-300">
+              <Link
+                href="/login"
+                className="font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Sign in
+              </Link>{" "}
+              to attempt quizzes and track your score
             </p>
           </div>
-        </div>
+        )}
+
+        {/* User Stats (logged in only) */}
+        {userId && (
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Your Rank
+              </p>
+              <p className="text-2xl font-bold mt-1">
+                {userRank > 0 ? `#${userRank}` : "—"}
+              </p>
+            </div>
+            <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Total Score
+              </p>
+              <p className="text-2xl font-bold mt-1">
+                {userScore ? Number(userScore.totalScore) : 0}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Active Quizzes */}
         {activeQuizzes.length > 0 && (
@@ -80,14 +96,15 @@ export default async function Home() {
             </h2>
             {activeQuizzes.map((quiz) => {
               const attempted = attemptMap.get(quiz.id);
+              const href = userId
+                ? attempted === true
+                  ? `/quiz/${quiz.id}/results`
+                  : `/quiz/${quiz.id}`
+                : "/login";
               return (
                 <Link
                   key={quiz.id}
-                  href={
-                    attempted === true
-                      ? `/quiz/${quiz.id}/results`
-                      : `/quiz/${quiz.id}`
-                  }
+                  href={href}
                   className="block p-4 rounded-xl bg-white dark:bg-slate-800 border border-green-200 dark:border-green-800 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -98,13 +115,13 @@ export default async function Home() {
                       </p>
                     </div>
                     <span className="shrink-0 px-3 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-                      {attempted === true ? (
-                        "Completed"
-                      ) : attempted === false ? (
-                        "In Progress"
-                      ) : (
-                        "Start"
-                      )}
+                      {!userId
+                        ? "Sign in"
+                        : attempted === true
+                        ? "Completed"
+                        : attempted === false
+                        ? "In Progress"
+                        : "Start"}
                     </span>
                   </div>
                   <div className="mt-2 flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
@@ -214,7 +231,7 @@ export default async function Home() {
                 <div
                   key={entry.userId}
                   className={`flex items-center gap-3 px-4 py-3 ${
-                    entry.userId === session.user.id
+                    userId && entry.userId === userId
                       ? "bg-blue-50 dark:bg-blue-900/20"
                       : ""
                   }`}
