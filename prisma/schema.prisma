@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  user
+  admin
+}
+
+enum AnswerType {
+  text
+  number
+}
+
+enum DisputeStatus {
+  pending
+  approved
+  rejected
+}
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  name           String?
+  image          String?
+  role           Role          @default(user)
+  createdAt      DateTime      @default(now())
+  attempts       Attempt[]
+  disputes       Dispute[]
+  resolvedBy     Dispute[]     @relation("ResolvedBy")
+  quizzesCreated Quiz[]
+  overallScore   OverallScore?
+}
+
+model Quiz {
+  id               String     @id @default(uuid())
+  title            String
+  biblePortion     String
+  startTime        DateTime
+  endTime          DateTime
+  questionCount    Int
+  createdBy        String
+  creator          User       @relation(fields: [createdBy], references: [id])
+  createdAt        DateTime   @default(now())
+  questions        Question[]
+  attempts         Attempt[]
+  penaltyProcessed Boolean    @default(false)
+  resultsProcessed Boolean    @default(false)
+}
+
+model Question {
+  id              String     @id @default(uuid())
+  quizId          String
+  quiz            Quiz       @relation(fields: [quizId], references: [id])
+  questionText    String
+  answerType      AnswerType
+  acceptedAnswers String[]
+  orderIndex      Int
+  answers         Answer[]
+}
+
+model Attempt {
+  id          String    @id @default(uuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  rawScore    Decimal?
+  bonusPoints Decimal   @default(0)
+  isComplete  Boolean   @default(false)
+  answers     Answer[]
+
+  @@unique([quizId, userId])
+}
+
+model Answer {
+  id               String    @id @default(uuid())
+  attemptId        String
+  attempt          Attempt   @relation(fields: [attemptId], references: [id])
+  questionId       String
+  question         Question  @relation(fields: [questionId], references: [id])
+  submittedText    String?
+  isCorrect        Boolean?
+  answeredAt       DateTime  @default(now())
+  timeTakenSeconds Int?
+  dispute          Dispute?
+}
+
+model Dispute {
+  id           String        @id @default(uuid())
+  answerId     String        @unique
+  answer       Answer        @relation(fields: [answerId], references: [id])
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  comment      String
+  status       DisputeStatus @default(pending)
+  adminNote    String?
+  resolvedById String?
+  resolvedBy   User?         @relation("ResolvedBy", fields: [resolvedById], references: [id])
+  createdAt    DateTime      @default(now())
+  resolvedAt   DateTime?
+}
+
+model OverallScore {
+  userId           String   @id
+  user             User     @relation(fields: [userId], references: [id])
+  totalScore       Decimal  @default(0)
+  quizzesAttempted Int      @default(0)
+  quizzesMissed    Int      @default(0)
+  lastUpdated      DateTime @updatedAt
+}

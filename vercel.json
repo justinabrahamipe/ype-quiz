@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/process-quiz-results",
+      "schedule": "15 0 * * *"
+    },
+    {
+      "path": "/api/cron/process-penalties",
+      "schedule": "30 0 * * *"
+    }
+  ]
+}

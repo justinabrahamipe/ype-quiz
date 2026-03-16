@@ -10,7 +10,7 @@
 |---|---|
 | Framework | Next.js 14 (App Router) |
 | Deployment | Vercel |
-| Database | NeonDB (Postgres) via Drizzle ORM |
+| Database | NeonDB (Postgres) via Prisma ORM |
 | Auth | NextAuth.js v5 — Google OAuth only |
 | Styling | Tailwind CSS |
 | Language | TypeScript throughout |
@@ -24,7 +24,8 @@
 Create a `.env.local` file:
 
 ```
-DATABASE_URL=             # NeonDB connection string
+DATABASE_URL=             # NeonDB pooled connection string (for Prisma queries)
+DIRECT_URL=               # NeonDB direct connection string (for migrations)
 NEXTAUTH_SECRET=          # Random secret string
 NEXTAUTH_URL=             # e.g. https://yourapp.vercel.app
 GOOGLE_CLIENT_ID=         # From Google Cloud Console
@@ -37,106 +38,174 @@ GOOGLE_CLIENT_SECRET=     # From Google Cloud Console
 
 ## 3. Database Schema
 
-Use Drizzle ORM. Create the following tables in NeonDB.
+Use Prisma ORM with NeonDB. Create `prisma/schema.prisma` as follows:
 
-### 3.1 users
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
 
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | auto-generated |
-| email | text UNIQUE NOT NULL | from Google OAuth |
-| name | text | from Google profile |
-| image | text | profile picture URL |
-| role | text DEFAULT 'user' | `'user'` or `'admin'` |
-| created_at | timestamp | account creation time |
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
 
-### 3.2 quizzes
+enum Role {
+  user
+  admin
+}
 
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | auto-generated |
-| title | text NOT NULL | e.g. "Genesis 1–10 Quiz" |
-| bible_portion | text NOT NULL | e.g. "Book of Genesis, Chapters 1–10" |
-| start_time | timestamp NOT NULL | 12:00 noon on chosen start date |
-| end_time | timestamp NOT NULL | 23:59 the next day after start |
-| question_count | int NOT NULL | admin sets this |
-| created_by | uuid FK → users.id | which admin created it |
-| created_at | timestamp | |
+enum AnswerType {
+  text
+  number
+}
 
-### 3.3 questions
+enum DisputeStatus {
+  pending
+  approved
+  rejected
+}
 
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| quiz_id | uuid FK → quizzes.id | |
-| question_text | text NOT NULL | in English |
-| answer_type | text NOT NULL | `'text'` or `'number'` |
-| accepted_answers | text[] NOT NULL | array of accepted correct answers |
-| order_index | int NOT NULL | display order |
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  name           String?
+  image          String?
+  role           Role          @default(user)
+  createdAt      DateTime      @default(now())
+  attempts       Attempt[]
+  disputes       Dispute[]
+  resolvedBy     Dispute[]     @relation("ResolvedBy")
+  quizzesCreated Quiz[]
+  overallScore   OverallScore?
+}
 
-**Notes on `accepted_answers`:**
-- Admin can enter multiple accepted answers per question
-- For `text` type: any one matching at 70%+ fuzzy similarity = correct
-- For `number` type: any one matching exactly = correct
-- Stored as a Postgres text array
+model Quiz {
+  id            String     @id @default(uuid())
+  title         String
+  biblePortion  String
+  startTime     DateTime
+  endTime       DateTime
+  questionCount Int
+  createdBy     String
+  creator       User       @relation(fields: [createdBy], references: [id])
+  createdAt     DateTime   @default(now())
+  questions     Question[]
+  attempts      Attempt[]
+  penaltyProcessed   Boolean @default(false)
+  resultsProcessed   Boolean @default(false)
+}
 
-### 3.4 attempts
+model Question {
+  id              String     @id @default(uuid())
+  quizId          String
+  quiz            Quiz       @relation(fields: [quizId], references: [id])
+  questionText    String
+  answerType      AnswerType
+  acceptedAnswers String[]
+  orderIndex      Int
+  answers         Answer[]
+}
 
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| quiz_id | uuid FK → quizzes.id | |
-| user_id | uuid FK → users.id | |
-| started_at | timestamp | when user first opened the quiz |
-| completed_at | timestamp | when user submitted last question |
-| raw_score | decimal | correct answer count (calculated after window closes) |
-| bonus_points | decimal DEFAULT 0 | +0.5 if early finisher with 50%+ |
-| is_complete | boolean DEFAULT false | true when all questions answered |
-| UNIQUE | (quiz_id, user_id) | one attempt per user per quiz |
+model Attempt {
+  id          String    @id @default(uuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  rawScore    Decimal?
+  bonusPoints Decimal   @default(0)
+  isComplete  Boolean   @default(false)
+  answers     Answer[]
 
-> **Important:** `raw_score` and `bonus_points` are NOT calculated at submission time. They are calculated only after the quiz window closes at 23:59. This prevents score leakage during the active window.
+  @@unique([quizId, userId])
+}
 
-### 3.5 answers
+model Answer {
+  id                String    @id @default(uuid())
+  attemptId         String
+  attempt           Attempt   @relation(fields: [attemptId], references: [id])
+  questionId        String
+  question          Question  @relation(fields: [questionId], references: [id])
+  submittedText     String?
+  isCorrect         Boolean?
+  answeredAt        DateTime  @default(now())
+  timeTakenSeconds  Int?
+  dispute           Dispute?
+}
 
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| attempt_id | uuid FK → attempts.id | |
-| question_id | uuid FK → questions.id | |
-| submitted_text | text | exactly what the user typed |
-| is_correct | boolean | NULL until quiz window closes |
-| answered_at | timestamp | when answer was submitted |
-| time_taken_seconds | int | seconds used out of 120 |
+model Dispute {
+  id          String        @id @default(uuid())
+  answerId    String        @unique
+  answer      Answer        @relation(fields: [answerId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  comment     String
+  status      DisputeStatus @default(pending)
+  adminNote   String?
+  resolvedById String?
+  resolvedBy  User?         @relation("ResolvedBy", fields: [resolvedById], references: [id])
+  createdAt   DateTime      @default(now())
+  resolvedAt  DateTime?
+}
 
-> `is_correct` stays NULL during the active quiz window. A background job sets it after the window closes.
+model OverallScore {
+  userId           String   @id
+  user             User     @relation(fields: [userId], references: [id])
+  totalScore       Decimal  @default(0)
+  quizzesAttempted Int      @default(0)
+  quizzesMissed    Int      @default(0)
+  lastUpdated      DateTime @updatedAt
+}
+```
 
-### 3.6 disputes
+### Setup commands
 
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid PK | |
-| answer_id | uuid FK → answers.id | which answer is disputed |
-| user_id | uuid FK → users.id | who raised the dispute |
-| comment | text NOT NULL | user's explanation |
-| status | text DEFAULT 'pending' | `'pending'`, `'approved'`, `'rejected'` |
-| admin_note | text | admin's response |
-| resolved_by | uuid FK → users.id | which admin resolved it |
-| created_at | timestamp | |
-| resolved_at | timestamp | |
+```bash
+npm install prisma @prisma/client
+npx prisma init
+# Add schema above to prisma/schema.prisma
+npx prisma db push         # push schema to NeonDB
+npx prisma generate        # generate Prisma client
+npx prisma studio          # optional: visual DB browser
+```
 
-> Disputes can only be raised **after** the quiz window closes (when correct answers are revealed).
+### NeonDB + Prisma note
 
-### 3.7 overall_scores (cached table)
+NeonDB requires two connection strings in `.env.local`:
 
-| Column | Type | Notes |
-|---|---|---|
-| user_id | uuid PK FK → users.id | |
-| total_score | decimal DEFAULT 0 | floored at 0, never negative |
-| quizzes_attempted | int DEFAULT 0 | |
-| quizzes_missed | int DEFAULT 0 | |
-| last_updated | timestamp | |
+```
+DATABASE_URL="postgresql://..."     # pooled connection (for Prisma queries)
+DIRECT_URL="postgresql://..."       # direct connection (for migrations)
+```
 
-> Recomputed after each quiz window closes and after each dispute resolution.
+Both are available in your NeonDB project dashboard.
+
+### Create Prisma client singleton in `lib/db.ts`
+
+```ts
+import { PrismaClient } from '@prisma/client'
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+
+export const prisma =
+  globalForPrisma.prisma ?? new PrismaClient({ log: ['error'] })
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+```
+
+> Always import `prisma` from `lib/db.ts` throughout the app — never instantiate PrismaClient directly.
+
+### Schema notes
+
+- `accepted_answers` is a Postgres `String[]` array — Prisma handles this natively
+- `is_correct` on Answer is `Boolean?` (nullable) — stays `null` during active quiz window, set to `true/false` by cron job after window closes
+- `raw_score` and `bonus_points` on Attempt are `Decimal?` — null until cron processes results
+- `@@unique([quizId, userId])` on Attempt enforces one attempt per user per quiz
+- `penaltyProcessed` and `resultsProcessed` on Quiz prevent double-running cron jobs
 
 ---
 
@@ -173,12 +242,13 @@ api/
   cron/process-penalties/route.ts   # Nightly missed-quiz penalties
 
 lib/
-  db/
-    schema.ts                       # Drizzle schema
-    index.ts                        # NeonDB connection
+  db.ts                             # Prisma client singleton
   auth.ts                           # NextAuth config
   scoring.ts                        # All scoring logic
   answer-matcher.ts                 # Fuzzy matching logic
+
+prisma/
+  schema.prisma                     # Prisma schema (single source of truth)
 ```
 
 ---
@@ -617,8 +687,8 @@ Runs at 00:30 daily. For each quiz processed in the last 24 hours:
 1. Push code to GitHub
 2. Connect repo to Vercel — framework preset: Next.js
 3. Add all environment variables in Vercel dashboard
-4. In NeonDB: create new project, copy connection string to `DATABASE_URL`
-5. Run `npx drizzle-kit push` to create tables in production
+4. In NeonDB: create new project, copy both the pooled and direct connection strings to `DATABASE_URL` and `DIRECT_URL`
+5. Run `npx prisma db push` to create tables in production, then `npx prisma generate`
 6. In Google Cloud Console:
    - Create OAuth 2.0 credentials
    - Authorised origins: `https://yourapp.vercel.app`
@@ -635,7 +705,7 @@ Runs at 00:30 daily. For each quiz processed in the last 24 hours:
 Build in this exact order to avoid blockers:
 
 1. **Project setup** — Next.js 14, TypeScript, Tailwind, Drizzle, NeonDB connection
-2. **Database schema** — all tables via Drizzle ORM (`npx drizzle-kit push`)
+2. **Database schema** — write `prisma/schema.prisma`, run `npx prisma db push` and `npx prisma generate`, create `lib/db.ts` singleton
 3. **Auth** — NextAuth Google provider, session with role, middleware for `/admin` routes
 4. **Answer matcher** — `lib/answer-matcher.ts` with fuzzy match + number exact match + article stripping. Write unit tests for this.
 5. **Admin: Create Quiz** — quiz form with dynamic question blocks, answer type toggle, multiple accepted answers, save to DB
