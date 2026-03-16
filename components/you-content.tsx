@@ -14,6 +14,8 @@ import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
 import { EditName } from "@/components/edit-name";
+import Link from "next/link";
+import CardActionArea from "@mui/material/CardActionArea";
 
 type Props = {
   name: string;
@@ -28,9 +30,10 @@ type Props = {
   totalMembers: number;
   recentAttempts: {
     id: string;
+    quizId: string;
     quizTitle: string;
     isPrerequisite: boolean;
-    score: number;
+    score: number | null;
     completedAt: string;
   }[];
 };
@@ -160,26 +163,31 @@ export function YouContent(props: Props) {
             {recentAttempts.map((attempt, i) => (
               <Box key={attempt.id}>
                 {i > 0 && <Divider />}
-                <Box sx={{ px: 2.5, py: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      {attempt.quizTitle}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {attempt.completedAt && new Date(attempt.completedAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </Typography>
+                <CardActionArea
+                  component={Link}
+                  href={`/quiz/${attempt.quizId}/submitted`}
+                >
+                  <Box sx={{ px: 2.5, py: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <Box>
+                      <Typography variant="body2" fontWeight={600}>
+                        {attempt.quizTitle}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {attempt.completedAt && new Date(attempt.completedAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={attempt.score !== null ? `${attempt.score} pts` : "Pending"}
+                      size="small"
+                      color={attempt.score === null ? "default" : attempt.isPrerequisite ? "warning" : "primary"}
+                      variant="outlined"
+                    />
                   </Box>
-                  <Chip
-                    label={`${attempt.score} pts`}
-                    size="small"
-                    color={attempt.isPrerequisite ? "warning" : "primary"}
-                    variant="outlined"
-                  />
-                </Box>
+                </CardActionArea>
               </Box>
             ))}
           </Card>

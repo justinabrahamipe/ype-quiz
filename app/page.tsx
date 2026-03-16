@@ -35,7 +35,7 @@ export default async function Home() {
     userId
       ? prisma.attempt.findMany({
           where: { userId },
-          select: { quizId: true, isComplete: true },
+          select: { quizId: true, isComplete: true, rawScore: true, bonusPoints: true, quiz: { select: { isPrerequisite: true } } },
         })
       : [],
   ]);
@@ -53,12 +53,21 @@ export default async function Home() {
   const upcomingQuizzes = regularQuizzes.filter((q) => now < q.startTime);
   const pastQuizzes = regularQuizzes.filter((q) => now > q.endTime);
 
-  const userRank = userId
-    ? leaderboard.findIndex((s) => s.userId === userId) + 1
+  // Calculate user score from attempts (not just overallScore table)
+  const userTotalScore = userId
+    ? userAttempts
+        .filter((a) => a.isComplete && !a.quiz?.isPrerequisite)
+        .reduce((sum, a) => sum + Number(a.rawScore ?? 0) + Number(a.bonusPoints ?? 0), 0)
     : 0;
-  const userScore = userId
-    ? leaderboard.find((s) => s.userId === userId)
-    : null;
+
+  const leaderboardEntry = userId ? leaderboard.find((s) => s.userId === userId) : null;
+  const userScore = leaderboardEntry ? Number(leaderboardEntry.totalScore) : userTotalScore;
+
+  const userRank = userId
+    ? leaderboardEntry
+      ? leaderboard.findIndex((s) => s.userId === userId) + 1
+      : 0
+    : 0;
 
   const prereqAttempted = prerequisiteQuiz
     ? attemptMap[prerequisiteQuiz.id]
@@ -73,7 +82,7 @@ export default async function Home() {
         userId={userId}
         userName={dbUser?.name || session?.user?.name || ""}
         userRank={userRank}
-        userScore={userScore ? Number(userScore.totalScore) : 0}
+        userScore={userScore}
         prerequisiteQuiz={prerequisiteQuiz ? {
           id: prerequisiteQuiz.id,
           title: prerequisiteQuiz.title,

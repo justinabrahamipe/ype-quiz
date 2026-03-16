@@ -45,7 +45,7 @@ export default async function SubmittedPage({
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="max-w-lg mx-auto px-4 py-8 space-y-6">
+        <main className="max-w-lg mx-auto px-3 py-4 space-y-4">
           <div className="text-center space-y-3">
             <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
               passed
@@ -75,7 +75,7 @@ export default async function SubmittedPage({
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {attempt.answers.map((ans, i) => {
               const correct = ans.isCorrect === true;
               const wrong = ans.isCorrect === false;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ThemeProvider as MuiThemeProvider, CssBaseline } from "@mui/material";
+import { useMemo } from "react";
+import { ThemeProvider as MuiThemeProvider } from "@mui/material/styles";
 import { useTheme } from "@/lib/theme";
 import { getMuiTheme } from "@/lib/mui-theme";
 
@@ -11,7 +11,6 @@ export function ThemeRegistry({ children }: { children: React.ReactNode }) {
 
   return (
     <MuiThemeProvider theme={muiTheme}>
-      <CssBaseline enableColorScheme />
       {children}
     </MuiThemeProvider>
   );
