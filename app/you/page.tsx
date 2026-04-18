@@ -5,6 +5,7 @@ import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 import { YouContent } from "@/components/you-content";
 import { backfillAttemptScores, updateOverallScore } from "@/lib/scoring";
+import { getOverallRank } from "@/lib/rank";
 
 export default async function YouPage() {
   const session = await auth();
@@ -16,7 +17,7 @@ export default async function YouPage() {
   await backfillAttemptScores(userId);
   await updateOverallScore(userId);
 
-  const [dbUser, overallScore, attempts, totalMembers, totalQuizzes] = await Promise.all([
+  const [dbUser, overallScore, attempts] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true, image: true, isQualified: true, createdAt: true },
@@ -29,10 +30,6 @@ export default async function YouPage() {
       },
       orderBy: { completedAt: "desc" },
     }),
-    prisma.overallScore.count({
-      where: { user: { isApproved: true, role: "user" } },
-    }),
-    prisma.quiz.count({ where: { isPrerequisite: false } }),
   ]);
 
   // Calculate stats from actual attempts
@@ -45,23 +42,11 @@ export default async function YouPage() {
       0
     );
 
-  // Calculate rank from overallScore or fallback
-  let rank = 0;
-  let tiedCount = 0;
-  const compareScore = overallScore?.totalScore ?? (totalPoints > 0 ? totalPoints : null);
-  if (compareScore !== null) {
-    const [higher, same] = await Promise.all([
-      prisma.overallScore.count({
-        where: { totalScore: { gt: compareScore }, user: { isApproved: true, role: "user" } },
-      }),
-      prisma.overallScore.count({
-        where: { totalScore: compareScore, user: { isApproved: true, role: "user" } },
-      }),
-    ]);
-    rank = higher + 1;
-    // Subtract 1 for the user themselves if they are already in the overallScore table
-    tiedCount = Math.max(0, same - (overallScore ? 1 : 0));
-  }
+  const compareScore = Number(overallScore?.totalScore ?? totalPoints);
+  const { rank, tiedCount, totalMembers } = await getOverallRank(
+    compareScore,
+    !!overallScore
+  );
 
   // Quizzes missed: total non-prereq quizzes that ended before now minus attempted
   const endedQuizzes = await prisma.quiz.count({

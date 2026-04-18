@@ -5,6 +5,7 @@ import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 import { QuizzesDashboard } from "@/components/quizzes-dashboard";
 import { backfillAttemptScores, updateOverallScore } from "@/lib/scoring";
+import { getOverallRank } from "@/lib/rank";
 
 export default async function QuizzesPage() {
   const session = await auth();
@@ -72,20 +73,10 @@ export default async function QuizzesPage() {
   const leaderboardEntry = leaderboard.find((s) => s.userId === userId);
   const userScore = leaderboardEntry ? Number(leaderboardEntry.totalScore) : userTotalScore;
 
-  let userRank = 0;
-  let userTiedCount = 0;
-  if (userScore > 0 || leaderboardEntry) {
-    const [higher, same] = await Promise.all([
-      prisma.overallScore.count({
-        where: { totalScore: { gt: userScore }, user: { isApproved: true, role: "user" } },
-      }),
-      prisma.overallScore.count({
-        where: { totalScore: userScore, user: { isApproved: true, role: "user" } },
-      }),
-    ]);
-    userRank = higher + 1;
-    userTiedCount = Math.max(0, same - (leaderboardEntry ? 1 : 0));
-  }
+  const { rank: userRank, tiedCount: userTiedCount } =
+    userScore > 0 || leaderboardEntry
+      ? await getOverallRank(userScore, !!leaderboardEntry)
+      : { rank: 0, tiedCount: 0 };
 
   const prereqAttempted = prerequisiteQuiz ? attemptMap[prerequisiteQuiz.id] : undefined;
 

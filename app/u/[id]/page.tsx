@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getOverallRank } from "@/lib/rank";
 import { UserShareView } from "./user-share-view";
 
 export const dynamic = "force-dynamic";
@@ -21,11 +22,8 @@ async function getUserStanding(id: string) {
   });
   if (!user || !user.isApproved || user.role !== "user") return null;
 
-  const [overallScore, totalMembers, quizzesAttempted] = await Promise.all([
+  const [overallScore, quizzesAttempted] = await Promise.all([
     prisma.overallScore.findUnique({ where: { userId: id } }),
-    prisma.overallScore.count({
-      where: { user: { isApproved: true, role: "user" } },
-    }),
     prisma.attempt.count({
       where: {
         userId: id,
@@ -37,16 +35,7 @@ async function getUserStanding(id: string) {
   ]);
 
   const score = Number(overallScore?.totalScore ?? 0);
-  let rank = 0;
-  if (overallScore) {
-    const higher = await prisma.overallScore.count({
-      where: {
-        totalScore: { gt: score },
-        user: { isApproved: true, role: "user" },
-      },
-    });
-    rank = higher + 1;
-  }
+  const { rank, totalMembers } = await getOverallRank(score, !!overallScore);
 
   return {
     name: user.name || "Anonymous",

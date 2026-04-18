@@ -10,6 +10,8 @@ import Button from "@mui/material/Button";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 
 type QuestionReview = {
   id: string;
@@ -21,11 +23,15 @@ type QuestionReview = {
 };
 
 type Props = {
+  quizId: string;
   title: string;
   biblePortion: string;
   score: number;
   totalQuestions: number;
   hasAttempt: boolean;
+  isPrerequisite: boolean;
+  passed: boolean | null;
+  needsRetry: boolean;
   rank: number;
   totalAttempts: number;
   tiedCount: number;
@@ -33,16 +39,22 @@ type Props = {
 };
 
 export function ReviewView({
+  quizId,
   title,
   biblePortion,
   score,
   totalQuestions,
   hasAttempt,
+  isPrerequisite,
+  passed,
+  needsRetry,
   rank,
   totalAttempts,
   tiedCount,
   questions,
 }: Props) {
+  const percentage =
+    totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
   return (
     <Box
       sx={{
@@ -73,7 +85,64 @@ export function ReviewView({
         </Typography>
       </Box>
 
-      {hasAttempt && (
+      {hasAttempt && isPrerequisite && (
+        <Card
+          elevation={0}
+          sx={{
+            border: "1px solid",
+            borderColor: passed ? "success.main" : "warning.main",
+            bgcolor: passed
+              ? "rgba(16,185,129,0.08)"
+              : "rgba(245,158,11,0.08)",
+          }}
+        >
+          <CardContent sx={{ textAlign: "center", py: 3 }}>
+            <EmojiEventsRoundedIcon
+              sx={{
+                fontSize: 40,
+                color: passed ? "success.main" : "warning.main",
+                mb: 1,
+              }}
+            />
+            <Typography variant="h5" fontWeight={800} sx={{ mb: 0.5 }}>
+              {passed ? "You passed!" : "Not quite yet"}
+            </Typography>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                color: passed ? "success.main" : "warning.main",
+                my: 1,
+              }}
+            >
+              {score} / {totalQuestions}{" "}
+              <Box component="span" sx={{ fontSize: "1.25rem", color: "text.secondary", fontWeight: 500 }}>
+                ({percentage}%)
+              </Box>
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {passed
+                ? "You're qualified to take all regular quizzes and appear on the leaderboard."
+                : "You need at least 70% to qualify. Review the questions and try again."}
+            </Typography>
+            {needsRetry && (
+              <Button
+                component={Link}
+                href={`/quiz/${quizId}`}
+                variant="contained"
+                color="warning"
+                size="large"
+                startIcon={<RefreshRoundedIcon />}
+                sx={{ mt: 2, fontWeight: 700 }}
+              >
+                Retake quiz
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {hasAttempt && !isPrerequisite && (
         <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
           <CardContent
             sx={{
@@ -118,10 +187,7 @@ export function ReviewView({
                 Accuracy
               </Typography>
               <Typography variant="h5" sx={{ fontWeight: 700, mt: 0.5 }}>
-                {totalQuestions > 0
-                  ? Math.round((score / totalQuestions) * 100)
-                  : 0}
-                %
+                {percentage}%
               </Typography>
             </Box>
             <Box sx={{ textAlign: "right" }}>

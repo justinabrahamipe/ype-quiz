@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/header";
+import { getQuizRank } from "@/lib/rank";
 import { ReviewView } from "./review-view";
 
 export default async function ReviewPage({
@@ -28,10 +29,16 @@ export default async function ReviewPage({
 
   const activeAttempt = attempt?.archivedAt ? null : attempt;
 
-  // Quiz window still open: results aren't published yet, so show the
-  // "submitted" confirmation (if they've already finished) or send them to the
-  // attempt page.
-  if (new Date() < quiz.endTime) {
+  if (quiz.isPrerequisite) {
+    // Prerequisite quiz: show the review page as soon as it's submitted, so
+    // the user sees their pass/fail straight away.
+    if (!activeAttempt?.isComplete) {
+      redirect(`/quiz/${quizId}`);
+    }
+  } else if (new Date() < quiz.endTime) {
+    // Regular quiz, window still open: results aren't published yet, so show
+    // the "submitted" confirmation if they've finished, otherwise send them
+    // to the attempt page.
     if (activeAttempt?.isComplete) {
       redirect(`/quiz/${quizId}/submitted`);
     }
@@ -45,35 +52,23 @@ export default async function ReviewPage({
   const score = Number(activeAttempt?.rawScore ?? 0);
   const totalQuestions = quiz.questions.length;
 
-  let rank = 0;
-  let totalAttempts = 0;
-  let tiedCount = 0;
-  if (activeAttempt) {
-    const [higher, same, all] = await Promise.all([
-      prisma.attempt.count({
-        where: {
-          quizId,
-          isComplete: true,
-          archivedAt: null,
-          rawScore: { gt: score },
-        },
-      }),
-      prisma.attempt.count({
-        where: {
-          quizId,
-          isComplete: true,
-          archivedAt: null,
-          rawScore: score,
-        },
-      }),
-      prisma.attempt.count({
-        where: { quizId, isComplete: true, archivedAt: null },
-      }),
-    ]);
-    rank = higher + 1;
-    tiedCount = Math.max(0, same - 1);
-    totalAttempts = all;
-  }
+  // Per-quiz rank is only meaningful for regular quizzes.
+  const { rank, tiedCount, totalAttempts } =
+    activeAttempt && !quiz.isPrerequisite
+      ? await getQuizRank(quizId, score, true)
+      : { rank: 0, tiedCount: 0, totalAttempts: 0 };
+
+  const percentage =
+    totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+  const passed = quiz.isPrerequisite ? percentage >= 70 : null;
+
+  const dbUser = quiz.isPrerequisite
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { isQualified: true },
+      })
+    : null;
+  const needsRetry = quiz.isPrerequisite && !dbUser?.isQualified;
 
   const questions = quiz.questions.map((q) => {
     const a = answerMap.get(q.id);
@@ -91,11 +86,15 @@ export default async function ReviewPage({
     <div className="min-h-screen bg-background">
       <Header />
       <ReviewView
+        quizId={quizId}
         title={quiz.title}
         biblePortion={quiz.biblePortion}
         score={score}
         totalQuestions={totalQuestions}
         hasAttempt={!!activeAttempt}
+        isPrerequisite={quiz.isPrerequisite}
+        passed={passed}
+        needsRetry={needsRetry}
         rank={rank}
         totalAttempts={totalAttempts}
         tiedCount={tiedCount}

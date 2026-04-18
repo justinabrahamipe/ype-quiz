@@ -4,6 +4,7 @@ import {
   fetchImageAsDataUri,
   readPublicImageAsDataUri,
 } from "@/lib/og-helpers";
+import { getOverallRank } from "@/lib/rank";
 
 export const runtime = "nodejs";
 export const contentType = "image/png";
@@ -51,37 +52,26 @@ export default async function UserOgImage({
       );
     }
 
-    const [overallScore, totalMembers, attemptsCount, avatar, logo] =
-      await Promise.all([
-        prisma.overallScore.findUnique({ where: { userId: id } }),
-        prisma.overallScore.count({
-          where: { user: { isApproved: true, role: "user" } },
-        }),
-        prisma.attempt.count({
-          where: {
-            userId: id,
-            isComplete: true,
-            archivedAt: null,
-            quiz: { isPrerequisite: false },
-          },
-        }),
-        fetchImageAsDataUri(user.image),
-        readPublicImageAsDataUri("logo.png"),
-      ]);
+    const [overallScore, attemptsCount, avatar, logo] = await Promise.all([
+      prisma.overallScore.findUnique({ where: { userId: id } }),
+      prisma.attempt.count({
+        where: {
+          userId: id,
+          isComplete: true,
+          archivedAt: null,
+          quiz: { isPrerequisite: false },
+        },
+      }),
+      fetchImageAsDataUri(user.image),
+      readPublicImageAsDataUri("logo.png"),
+    ]);
 
     const name = user.name || "Anonymous";
     const score = Number(overallScore?.totalScore ?? 0);
-
-    let rank = 0;
-    if (overallScore) {
-      const higher = await prisma.overallScore.count({
-        where: {
-          totalScore: { gt: score },
-          user: { isApproved: true, role: "user" },
-        },
-      });
-      rank = higher + 1;
-    }
+    const { rank, totalMembers } = await getOverallRank(
+      score,
+      !!overallScore
+    );
 
     const rankLabel =
       rank === 1 ? "1st" : rank === 2 ? "2nd" : rank === 3 ? "3rd" : `#${rank}`;
