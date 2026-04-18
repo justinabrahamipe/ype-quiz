@@ -339,15 +339,6 @@ export function QuizzesDashboard(props: Props) {
                         month: "short",
                       })}
                     </Typography>
-                    {quiz.attempted && (
-                      <Typography
-                        variant="caption"
-                        color="primary.main"
-                        sx={{ display: "flex", alignItems: "center", gap: 0.5, fontWeight: 600 }}
-                      >
-                        Review answers →
-                      </Typography>
-                    )}
                   </Box>
                 </CardContent>
               );
@@ -359,12 +350,17 @@ export function QuizzesDashboard(props: Props) {
                     opacity: quiz.attempted ? 1 : 0.75,
                     border: "1px solid",
                     borderColor: "divider",
+                    transition: "border-color 0.2s",
+                    "&:hover": quiz.attempted
+                      ? { borderColor: "primary.main" }
+                      : undefined,
                   }}
                 >
                   {quiz.attempted ? (
                     <CardActionArea
                       component={Link}
                       href={`/quiz/${quiz.id}/review`}
+                      sx={{ display: "block" }}
                     >
                       {card}
                     </CardActionArea>
