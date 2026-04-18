@@ -163,7 +163,9 @@ export function QuizzesDashboard(props: Props) {
             {activeQuizzes.map((quiz) => {
               const canAccess = isApproved && isQualified;
               const href = canAccess
-                ? quiz.attempted === true ? `/quiz/${quiz.id}/results` : `/quiz/${quiz.id}`
+                ? quiz.attempted === true
+                  ? `/quiz/${quiz.id}/submitted`
+                  : `/quiz/${quiz.id}`
                 : "#";
               const lockLabel = !isApproved ? "Pending" : !isQualified ? "Locked" : null;
               return (

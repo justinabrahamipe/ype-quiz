@@ -18,9 +18,11 @@ export default async function SubmittedPage({
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
   if (!quiz) redirect("/");
 
-  // If quiz window closed and results processed, go to results
-  if (new Date() > quiz.endTime && quiz.resultsProcessed) {
-    redirect(`/quiz/${quizId}/results`);
+  // Once the quiz window has closed, the canonical per-attempt view is /review.
+  // Non-prerequisite quizzes always go there; prerequisite quizzes keep their
+  // inline pass/fail flow below (so a qualifying attempt still shows instantly).
+  if (new Date() > quiz.endTime && !quiz.isPrerequisite) {
+    redirect(`/quiz/${quizId}/review`);
   }
 
   const attempt = await prisma.attempt.findUnique({
