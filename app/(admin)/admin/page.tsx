@@ -76,63 +76,58 @@ export default async function AdminDashboard() {
           {!hasPrerequisite && <QualifyingQuizButton />}
         </div>
 
-        {/* Quiz Table */}
+        {/* Quiz list */}
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--card-border)]">
-                <th className="text-left py-3.5 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Title
-                </th>
-                <th className="text-left py-3.5 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Status
-                </th>
-                <th className="text-left py-3.5 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Attempts
-                </th>
-                <th className="text-left py-3.5 px-5 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {quizzes.map((quiz) => {
-                const status = getStatus(quiz);
-                return (
-                  <tr
-                    key={quiz.id}
-                    className="border-b border-[var(--card-border)] last:border-0 hover:bg-[var(--surface)] transition-colors"
-                  >
-                    <td className="py-3.5 px-5 font-medium">{quiz.title}</td>
-                    <td className="py-3.5 px-5">
-                      <span
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                          status === "Active"
-                            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
-                            : status === "Upcoming"
-                            ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                            : status === "Qualifying"
-                            ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-                            : "bg-[var(--surface)] text-[var(--muted)]"
-                        }`}
-                      >
-                        {status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-5 tabular-nums">{quiz._count.attempts}</td>
-                    <td className="py-3.5 px-5 space-x-3">
-                      <Link
-                        href={`/admin/quizzes/${quiz.id}`}
-                        className="text-[var(--accent)] hover:underline font-medium"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {quizzes.length === 0 && (
+            <div className="p-6 text-sm text-[var(--muted)] text-center">
+              No quizzes yet.
+            </div>
+          )}
+          {quizzes.map((quiz) => {
+            const status = getStatus(quiz);
+            return (
+              <Link
+                key={quiz.id}
+                href={`/admin/quizzes/${quiz.id}`}
+                className="flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-[var(--card-border)] last:border-0 hover:bg-[var(--surface)] transition-colors"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{quiz.title}</p>
+                  <p className="text-xs text-[var(--muted)] mt-0.5 tabular-nums">
+                    {quiz._count.attempts}{" "}
+                    {quiz._count.attempts === 1 ? "attempt" : "attempts"}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                    status === "Active"
+                      ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                      : status === "Upcoming"
+                      ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                      : status === "Qualifying"
+                      ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                      : "bg-[var(--surface)] text-[var(--muted)]"
+                  }`}
+                >
+                  {status}
+                </span>
+                <svg
+                  className="w-4 h-4 text-[var(--muted)] shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </Link>
+            );
+          })}
         </div>
       </main>
     </div>
