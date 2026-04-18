@@ -73,6 +73,7 @@ export default async function YouPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <YouContent
+        userId={userId}
         name={dbUser?.name || session.user.name || ""}
         email={dbUser?.email || ""}
         image={dbUser?.image || session.user.image || null}

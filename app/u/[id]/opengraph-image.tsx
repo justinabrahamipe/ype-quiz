@@ -1,35 +1,34 @@
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
-import { readPublicImageAsDataUri } from "@/lib/og-helpers";
+import {
+  fetchImageAsDataUri,
+  readPublicImageAsDataUri,
+} from "@/lib/og-helpers";
 
 export const runtime = "nodejs";
 export const contentType = "image/png";
 export const alt = "YPE Bible Quiz";
 export const size = { width: 1080, height: 1350 };
 
-export default async function QuizOgImage({
+export default async function UserOgImage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   try {
     const { id } = await params;
-    const [quiz, logo] = await Promise.all([
-      prisma.quiz.findUnique({
-        where: { id },
-        select: {
-          title: true,
-          biblePortion: true,
-          questionCount: true,
-          startTime: true,
-          endTime: true,
-          isPrerequisite: true,
-        },
-      }),
-      readPublicImageAsDataUri("logo.png"),
-    ]);
 
-    if (!quiz) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        name: true,
+        image: true,
+        isApproved: true,
+        role: true,
+      },
+    });
+
+    if (!user || !user.isApproved || user.role !== "user") {
       return new ImageResponse(
         (
           <div
@@ -52,30 +51,48 @@ export default async function QuizOgImage({
       );
     }
 
-    const now = new Date();
-    let statusLabel = "Upcoming";
-    let statusColor = "#a8a29e";
-    if (quiz.isPrerequisite) {
-      statusLabel = "Qualifying quiz";
-      statusColor = "#fbbf24";
-    } else if (now >= quiz.startTime && now <= quiz.endTime) {
-      statusLabel = "Open now";
-      statusColor = "#34d399";
-    } else if (now > quiz.endTime) {
-      statusLabel = "Closed";
-      statusColor = "#fb7185";
+    const [overallScore, totalMembers, attemptsCount, avatar, logo] =
+      await Promise.all([
+        prisma.overallScore.findUnique({ where: { userId: id } }),
+        prisma.overallScore.count({
+          where: { user: { isApproved: true, role: "user" } },
+        }),
+        prisma.attempt.count({
+          where: {
+            userId: id,
+            isComplete: true,
+            archivedAt: null,
+            quiz: { isPrerequisite: false },
+          },
+        }),
+        fetchImageAsDataUri(user.image),
+        readPublicImageAsDataUri("logo.png"),
+      ]);
+
+    const name = user.name || "Anonymous";
+    const score = Number(overallScore?.totalScore ?? 0);
+
+    let rank = 0;
+    if (overallScore) {
+      const higher = await prisma.overallScore.count({
+        where: {
+          totalScore: { gt: score },
+          user: { isApproved: true, role: "user" },
+        },
+      });
+      rank = higher + 1;
     }
 
-    const dateFmt = (d: Date) =>
-      d.toLocaleDateString("en-GB", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      });
-    const window =
-      quiz.startTime.toDateString() === quiz.endTime.toDateString()
-        ? dateFmt(quiz.startTime)
-        : `${dateFmt(quiz.startTime)} – ${dateFmt(quiz.endTime)}`;
+    const rankLabel =
+      rank === 1 ? "1st" : rank === 2 ? "2nd" : rank === 3 ? "3rd" : `#${rank}`;
+    const accent =
+      rank === 1
+        ? "#fbbf24"
+        : rank === 2
+        ? "#cbd5e1"
+        : rank === 3
+        ? "#d97706"
+        : "#2dd4bf";
 
     return new ImageResponse(
       (
@@ -86,10 +103,9 @@ export default async function QuizOgImage({
             display: "flex",
             flexDirection: "column",
             backgroundColor: "#0c0a09",
-            backgroundImage:
-              "radial-gradient(circle at 15% 10%, rgba(20,184,166,0.35) 0%, transparent 55%), radial-gradient(circle at 85% 95%, rgba(217,119,6,0.3) 0%, transparent 50%)",
+            backgroundImage: `radial-gradient(circle at 20% 15%, ${accent}40 0%, transparent 55%), radial-gradient(circle at 80% 95%, rgba(20,184,166,0.3) 0%, transparent 55%)`,
             color: "#f5f5f4",
-            padding: "55px 60px",
+            padding: "50px 60px",
             fontFamily: "sans-serif",
           }}
         >
@@ -99,7 +115,6 @@ export default async function QuizOgImage({
               alignItems: "center",
               justifyContent: "center",
               gap: 18,
-              marginBottom: 30,
             }}
           >
             {logo && (
@@ -156,57 +171,125 @@ export default async function QuizOgImage({
               textAlign: "center",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                padding: "8px 22px",
-                borderRadius: 999,
-                background: `${statusColor}22`,
-                border: `2px solid ${statusColor}`,
-                color: statusColor,
-                fontSize: 24,
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                marginBottom: 30,
-              }}
-            >
-              {statusLabel}
-            </div>
+            {avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatar}
+                alt=""
+                width={180}
+                height={180}
+                style={{
+                  width: 180,
+                  height: 180,
+                  borderRadius: 90,
+                  border: `5px solid ${accent}`,
+                  objectFit: "cover",
+                  marginBottom: 18,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 180,
+                  height: 180,
+                  borderRadius: 90,
+                  border: `5px solid ${accent}`,
+                  background: "linear-gradient(135deg, #0f766e, #14b8a6)",
+                  fontSize: 90,
+                  fontWeight: 800,
+                  color: "#f0fdfa",
+                  marginBottom: 18,
+                }}
+              >
+                {(name[0] || "?").toUpperCase()}
+              </div>
+            )}
 
             <div
               style={{
                 display: "flex",
-                fontSize: 96,
-                fontWeight: 900,
-                letterSpacing: "-0.03em",
-                lineHeight: 1.02,
-                marginBottom: 14,
+                fontSize: 52,
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                marginBottom: 6,
               }}
             >
-              {quiz.title}
+              {name}
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                fontSize: 40,
-                color: "#2dd4bf",
-                fontWeight: 700,
-                marginBottom: 40,
-              }}
-            >
-              {quiz.biblePortion}
-            </div>
-
-            <div style={{ display: "flex", gap: 20, marginBottom: 40 }}>
+            {rank > 0 ? (
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  padding: "18px 32px",
-                  borderRadius: 18,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 22,
+                    color: "#a8a29e",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    marginBottom: 10,
+                  }}
+                >
+                  Currently ranked
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 170,
+                    fontWeight: 900,
+                    color: accent,
+                    lineHeight: 1,
+                    letterSpacing: "-0.04em",
+                    marginBottom: 8,
+                  }}
+                >
+                  {rankLabel}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 26,
+                    color: "#d6d3d1",
+                    marginBottom: 28,
+                  }}
+                >
+                  {`of ${totalMembers} member${
+                    totalMembers === 1 ? "" : "s"
+                  }`}
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 36,
+                  fontWeight: 700,
+                  color: accent,
+                  marginBottom: 28,
+                  marginTop: 12,
+                }}
+              >
+                Just getting started
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 28 }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  padding: "20px 36px",
+                  borderRadius: 20,
                   background: "rgba(255,255,255,0.05)",
                   border: "1px solid rgba(255,255,255,0.1)",
                 }}
@@ -214,25 +297,25 @@ export default async function QuizOgImage({
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 52,
+                    fontSize: 58,
                     fontWeight: 800,
-                    color: "#fbbf24",
+                    color: accent,
                     lineHeight: 1,
                   }}
                 >
-                  {`${quiz.questionCount}`}
+                  {`${score}`}
                 </div>
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 18,
+                    fontSize: 20,
                     color: "#a8a29e",
                     marginTop: 6,
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
                   }}
                 >
-                  Questions
+                  Points
                 </div>
               </div>
               <div
@@ -240,8 +323,8 @@ export default async function QuizOgImage({
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  padding: "18px 32px",
-                  borderRadius: 18,
+                  padding: "20px 36px",
+                  borderRadius: 20,
                   background: "rgba(255,255,255,0.05)",
                   border: "1px solid rgba(255,255,255,0.1)",
                 }}
@@ -249,43 +332,27 @@ export default async function QuizOgImage({
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 32,
+                    fontSize: 58,
                     fontWeight: 800,
-                    color: "#e7e5e4",
+                    color: "#2dd4bf",
                     lineHeight: 1,
-                    marginTop: 12,
                   }}
                 >
-                  {window}
+                  {`${attemptsCount}`}
                 </div>
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 18,
+                    fontSize: 20,
                     color: "#a8a29e",
-                    marginTop: 10,
+                    marginTop: 6,
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
                   }}
                 >
-                  Window
+                  {attemptsCount === 1 ? "Quiz" : "Quizzes"}
                 </div>
               </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                padding: "16px 36px",
-                borderRadius: 14,
-                background: "linear-gradient(135deg, #0f766e, #14b8a6)",
-                color: "#f0fdfa",
-                fontSize: 30,
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-              }}
-            >
-              Tap to take the quiz →
             </div>
           </div>
 
@@ -324,7 +391,7 @@ export default async function QuizOgImage({
       size
     );
   } catch (err) {
-    console.error("[opengraph-image q/id] failed:", err);
+    console.error("[opengraph-image u/id] failed:", err);
     return new ImageResponse(
       (
         <div

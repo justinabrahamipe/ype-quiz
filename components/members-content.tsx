@@ -10,7 +10,7 @@ import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
-import { ImageShareButton } from "@/components/image-share-button";
+import { ShareButton } from "@/components/share-button";
 
 type Member = {
   id: string;
@@ -56,11 +56,12 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
             </Typography>
           </Box>
         </Box>
-        <ImageShareButton
-          imageUrl="/api/og/leaderboard"
-          fileName="ype-leaderboard.png"
+        <ShareButton
           title="YPE Bible Quiz Leaderboard"
           text={shareText}
+          url={`${
+            typeof window !== "undefined" ? window.location.origin : ""
+          }/leaderboard`}
           label="Share"
         />
       </Box>

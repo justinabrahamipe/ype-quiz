@@ -17,9 +17,10 @@ import { EditName } from "@/components/edit-name";
 import Link from "next/link";
 import CardActionArea from "@mui/material/CardActionArea";
 import { MessageUsLink } from "@/components/message-us-link";
-import { ImageShareButton } from "@/components/image-share-button";
+import { ShareButton } from "@/components/share-button";
 
 type Props = {
+  userId: string;
   name: string;
   email: string;
   image: string | null;
@@ -43,7 +44,7 @@ type Props = {
 
 export function YouContent(props: Props) {
   const {
-    name, email, image, isQualified, joinedAt,
+    userId, name, email, image, isQualified, joinedAt,
     totalScore, quizzesAttempted, quizzesMissed,
     rank, tiedCount = 0, totalMembers, recentAttempts,
   } = props;
@@ -105,12 +106,13 @@ export function YouContent(props: Props) {
               )}
             </Box>
           </Box>
-          <ImageShareButton
+          <ShareButton
             variant="icon"
-            imageUrl="/api/og/you"
-            fileName="ype-my-standing.png"
             title="My YPE Bible Quiz standing"
             text={shareText}
+            url={`${
+              typeof window !== "undefined" ? window.location.origin : ""
+            }/u/${userId}`}
             label="Share my standing"
           />
         </CardContent>
