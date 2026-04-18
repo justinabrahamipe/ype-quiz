@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
-import { fetchImageAsDataUri } from "@/lib/og-helpers";
+import { fetchImageAsDataUri, readPublicImageAsDataUri } from "@/lib/og-helpers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,12 +30,15 @@ export async function GET() {
 
     // Pre-fetch avatars as data URIs so a single failed image doesn't break the
     // whole OG render.
-    const list = await Promise.all(
-      base.map(async (m) => ({
-        ...m,
-        imageData: await fetchImageAsDataUri(m.image),
-      }))
-    );
+    const [list, logo] = await Promise.all([
+      Promise.all(
+        base.map(async (m) => ({
+          ...m,
+          imageData: await fetchImageAsDataUri(m.image),
+        }))
+      ),
+      readPublicImageAsDataUri("logo.png"),
+    ]);
 
     const rankColor = (i: number) =>
       i === 0
@@ -86,28 +89,59 @@ export async function GET() {
             style={{
               display: "flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 20,
               marginBottom: 36,
             }}
           >
-            <div style={{ width: 70, height: 5, background: "#fbbf24" }} />
+            {logo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logo}
+                alt=""
+                width={80}
+                height={80}
+                style={{ width: 80, height: 80 }}
+              />
+            )}
             <div
               style={{
                 display: "flex",
-                color: "#fbbf24",
-                fontSize: 34,
-                fontWeight: 800,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
+                flexDirection: "column",
+                alignItems: "center",
               }}
             >
-              YPE Bible Quiz
+              <div
+                style={{
+                  display: "flex",
+                  fontSize: 24,
+                  color: "#e7e5e4",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Mahanaim
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  color: "#fbbf24",
+                  fontSize: 34,
+                  fontWeight: 800,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                }}
+              >
+                YPE Bible Quiz
+              </div>
             </div>
           </div>
 
           <div
             style={{
               display: "flex",
+              justifyContent: "center",
               fontSize: 110,
               fontWeight: 800,
               lineHeight: 1,
@@ -120,6 +154,7 @@ export async function GET() {
           <div
             style={{
               display: "flex",
+              justifyContent: "center",
               fontSize: 30,
               color: "#a8a29e",
               marginBottom: 50,

@@ -32,9 +32,16 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
-  const shareText = (topN.length
-    ? `Top ${topN.length} on the YPE Bible Quiz leaderboard:\n\n${topLines}`
-    : "Check out the YPE Bible Quiz leaderboard.") + `\n\n${siteUrl}`;
+  const shareText = [
+    "Mahanaim YPE Quiz",
+    "Leaderboard",
+    "",
+    topN.length ? topLines : "Be the first to qualify!",
+    "",
+    siteUrl,
+  ]
+    .filter((l) => l !== undefined)
+    .join("\n");
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", px: { xs: 1.5, sm: 3 }, py: 3, pb: 12 }}>

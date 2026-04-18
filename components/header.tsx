@@ -19,6 +19,7 @@ import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import { usePathname } from "next/navigation";
+import { InstallButton } from "@/components/install-button";
 
 export function Header() {
   const { data: session } = useSession();
@@ -107,6 +108,7 @@ export function Header() {
         <Box sx={{ flexGrow: 1, display: { xs: "block", md: "none" } }} />
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <InstallButton />
           <IconButton
             onClick={toggleTheme}
             size="small"
