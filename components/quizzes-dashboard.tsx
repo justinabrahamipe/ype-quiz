@@ -17,6 +17,7 @@ import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
 import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
 import { Countdown } from "@/components/countdown";
 import { EditName } from "@/components/edit-name";
+import { ShareButton } from "@/components/share-button";
 
 type QuizCard = {
   id: string;
@@ -106,10 +107,10 @@ export function QuizzesDashboard(props: Props) {
             <ShieldRoundedIcon sx={{ fontSize: 18, color: "warning.main" }} />
             <Typography variant="overline" color="text.secondary">Qualification Required</Typography>
           </Box>
-          <Card elevation={0} sx={{ border: "1px solid", borderColor: "warning.main", boxShadow: "0 0 0 1px rgba(245,158,11,0.2), 0 4px 20px rgba(245,158,11,0.08)" }}>
+          <Card elevation={0} sx={{ position: "relative", border: "1px solid", borderColor: "warning.main", boxShadow: "0 0 0 1px rgba(245,158,11,0.2), 0 4px 20px rgba(245,158,11,0.08)" }}>
             <CardActionArea component={Link} href={`/quiz/${prerequisiteQuiz.id}`}>
               <CardContent>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, pr: 4 }}>
                   <Box>
                     <Typography variant="subtitle1" fontWeight={600}>{prerequisiteQuiz.title}</Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -130,6 +131,15 @@ export function QuizzesDashboard(props: Props) {
                 </Box>
               </CardContent>
             </CardActionArea>
+            <Box sx={{ position: "absolute", top: 6, right: 6, zIndex: 1 }}>
+              <ShareButton
+                variant="icon"
+                title={`${prerequisiteQuiz.title} · YPE Bible Quiz`}
+                text={`Take the ${prerequisiteQuiz.title} quiz (${prerequisiteQuiz.biblePortion}, ${prerequisiteQuiz.questionCount} questions) on the YPE Bible Quiz.`}
+                url={`${typeof window !== "undefined" ? window.location.origin : ""}/q/${prerequisiteQuiz.id}`}
+                label="Share quiz"
+              />
+            </Box>
           </Card>
         </Box>
       )}
@@ -149,7 +159,7 @@ export function QuizzesDashboard(props: Props) {
                 : "#";
               const lockLabel = !isApproved ? "Pending" : !isQualified ? "Locked" : null;
               return (
-                <Card key={quiz.id} elevation={0} sx={{ border: "1px solid", borderColor: "success.main", opacity: canAccess ? 1 : 0.6, boxShadow: "0 0 0 1px rgba(16,185,129,0.2), 0 4px 16px rgba(16,185,129,0.08)" }}>
+                <Card key={quiz.id} elevation={0} sx={{ position: "relative", border: "1px solid", borderColor: "success.main", opacity: canAccess ? 1 : 0.6, boxShadow: "0 0 0 1px rgba(16,185,129,0.2), 0 4px 16px rgba(16,185,129,0.08)" }}>
                   <CardActionArea
                     component={Link}
                     href={href}
@@ -157,7 +167,7 @@ export function QuizzesDashboard(props: Props) {
                     onClick={!canAccess ? (e: React.MouseEvent) => e.preventDefault() : undefined}
                   >
                     <CardContent>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, pr: 4 }}>
                         <Box>
                           <Typography variant="subtitle1" fontWeight={600}>{quiz.title}</Typography>
                           <Typography variant="body2" color="text.secondary">{quiz.biblePortion}</Typography>
@@ -183,6 +193,15 @@ export function QuizzesDashboard(props: Props) {
                       </Box>
                     </CardContent>
                   </CardActionArea>
+                  <Box sx={{ position: "absolute", top: 6, right: 6, zIndex: 1 }}>
+                    <ShareButton
+                      variant="icon"
+                      title={`${quiz.title} · YPE Bible Quiz`}
+                      text={`${quiz.title} — ${quiz.biblePortion} · ${quiz.questionCount} questions. Open now on the YPE Bible Quiz.`}
+                      url={`${typeof window !== "undefined" ? window.location.origin : ""}/q/${quiz.id}`}
+                      label="Share quiz"
+                    />
+                  </Box>
                 </Card>
               );
             })}
@@ -196,9 +215,9 @@ export function QuizzesDashboard(props: Props) {
           <Typography variant="overline" color="text.secondary" sx={{ mb: 1.5, display: "block" }}>Upcoming</Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             {upcomingQuizzes.map((quiz) => (
-              <Card key={quiz.id} elevation={0} sx={{ cursor: "default", opacity: 0.75 }}>
+              <Card key={quiz.id} elevation={0} sx={{ position: "relative", cursor: "default", opacity: 0.75 }}>
                 <CardContent>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, pr: 4 }}>
                     <Box>
                       <Typography variant="subtitle1" fontWeight={600}>{quiz.title}</Typography>
                       <Typography variant="body2" color="text.secondary">{quiz.biblePortion}</Typography>
@@ -214,6 +233,15 @@ export function QuizzesDashboard(props: Props) {
                     </Typography>
                   </Box>
                 </CardContent>
+                <Box sx={{ position: "absolute", top: 6, right: 6, zIndex: 1 }}>
+                  <ShareButton
+                    variant="icon"
+                    title={`${quiz.title} · YPE Bible Quiz`}
+                    text={`${quiz.title} — ${quiz.biblePortion} · opens ${new Date(quiz.startTime).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}. YPE Bible Quiz.`}
+                    url={`${typeof window !== "undefined" ? window.location.origin : ""}/q/${quiz.id}`}
+                    label="Share quiz"
+                  />
+                </Box>
               </Card>
             ))}
           </Box>
