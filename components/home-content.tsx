@@ -19,6 +19,7 @@ export function HomeContent({ isLoggedIn }: { isLoggedIn: boolean }) {
         minHeight: "calc(100vh - 56px)",
         display: "flex",
         flexDirection: "column",
+        pb: isLoggedIn ? { xs: 8, md: 0 } : 0,
         background:
           theme.palette.mode === "dark"
             ? "radial-gradient(circle at 15% 15%, rgba(20,184,166,0.22) 0%, transparent 55%), radial-gradient(circle at 90% 90%, rgba(251,191,36,0.16) 0%, transparent 50%), #0c0a09"
@@ -197,25 +198,34 @@ export function HomeContent({ isLoggedIn }: { isLoggedIn: boolean }) {
           borderTop: "1px solid",
           borderColor: "divider",
           px: { xs: 3, sm: 5, md: 8 },
-          py: 2.5,
+          py: { xs: 2.5, md: 2.5 },
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: { xs: 1, md: 2 },
           textAlign: { xs: "center", md: "left" },
         }}
       >
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           Organised by the{" "}
           <Box component="span" sx={{ color: "primary.main", fontWeight: 700 }}>
-            Young People&apos;s Endeavour (YPE)
-          </Box>{" "}
-          of{" "}
+            Young People&apos;s Endeavour
+          </Box>
+          <Box
+            component="span"
+            sx={{ display: { xs: "block", md: "inline" } }}
+          >
+            {" "}of{" "}
+          </Box>
           <Box component="span" sx={{ fontWeight: 600 }}>
             Mahanaim Church of God, Manchester
           </Box>
-          . {" "}
-          <MessageUsLink
-            label="Questions? Message us"
-            subject="YPE Bible Quiz — question"
-          />
         </Typography>
+        <MessageUsLink
+          label="Questions? Message us"
+          subject="YPE Bible Quiz — question"
+        />
       </Box>
     </Box>
   );
