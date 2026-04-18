@@ -35,6 +35,7 @@ export function BottomNav() {
     >
       <BottomNavigation
         value={getValue()}
+        showLabels
         sx={{
           bgcolor: "background.paper",
           justifyContent: "space-between",

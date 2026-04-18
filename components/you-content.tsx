@@ -17,7 +17,7 @@ import { EditName } from "@/components/edit-name";
 import Link from "next/link";
 import CardActionArea from "@mui/material/CardActionArea";
 import { MessageUsLink } from "@/components/message-us-link";
-import { ShareButton } from "@/components/share-button";
+import { ImageShareButton } from "@/components/image-share-button";
 
 type Props = {
   name: string;
@@ -101,8 +101,10 @@ export function YouContent(props: Props) {
               )}
             </Box>
           </Box>
-          <ShareButton
+          <ImageShareButton
             variant="icon"
+            imageUrl="/api/og/you"
+            fileName="ype-my-standing.png"
             title="My YPE Bible Quiz standing"
             text={shareText}
             label="Share my standing"

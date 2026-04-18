@@ -218,80 +218,65 @@ export default function QuizAttemptPage() {
 
   const isLast = currentIndex >= questions.length - 1;
 
-  // Timer ring colors
   const timerColor =
     timeLeft > 60 ? "#16a34a" : timeLeft > 30 ? "#d97706" : "#dc2626";
-  const circumference = 2 * Math.PI * 45;
-  const strokeDashoffset = circumference * (1 - timeLeft / 120);
+
+  const formatTime = (t: number) => {
+    if (t >= 60) {
+      const m = Math.floor(t / 60);
+      const s = t % 60;
+      return s === 0 ? `${m} min` : `${m} min ${s}s`;
+    }
+    return `${t}s`;
+  };
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6">
-      <div className="max-w-lg mx-auto space-y-6">
-        {/* Progress */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
-            <span>
-              Question {currentIndex + 1} of {questions.length}
-            </span>
-          </div>
-          <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-blue-600 rounded-full transition-all duration-300"
-              style={{
-                width: `${((currentIndex + 1) / questions.length) * 100}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Timer */}
-        <div className="flex justify-center">
-          <div className="relative w-24 h-24">
-            <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50"
-                cy="50"
-                r="45"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="6"
-                className="text-slate-200 dark:text-slate-700"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="45"
-                fill="none"
-                stroke={timerColor}
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                className="transition-all duration-1000 ease-linear"
-              />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span
-                className="text-xl font-bold"
-                style={{ color: timerColor }}
-              >
-                {timeLeft}
+    <div className="min-h-screen bg-background px-4 py-5 flex flex-col justify-center focus-within:justify-start">
+      <div className="max-w-lg w-full mx-auto space-y-5">
+        {/* Progress + compact timer */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 space-y-1.5">
+            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+              <span>
+                Question {currentIndex + 1} of {questions.length}
               </span>
             </div>
+            <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                style={{
+                  width: `${((currentIndex + 1) / questions.length) * 100}%`,
+                }}
+              />
+            </div>
+          </div>
+          <div
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full border text-sm font-semibold tabular-nums whitespace-nowrap"
+            style={{ color: timerColor, borderColor: timerColor }}
+            aria-label="Time remaining"
+          >
+            {formatTime(timeLeft)}
           </div>
         </div>
 
         {/* Question */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700">
           <p className="text-lg font-medium leading-relaxed">
             {currentQuestion.questionText}
           </p>
         </div>
 
-        {/* Answer input */}
-        <div>
+        {/* Answer form — Enter/Go key advances to next question */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!submitting) handleNext();
+          }}
+        >
           <input
             type={currentQuestion.answerType === "number" ? "number" : "text"}
+            inputMode={currentQuestion.answerType === "number" ? "numeric" : "text"}
+            enterKeyHint={isLast ? "done" : "next"}
             value={answer}
             onChange={(e) => handleInputChange(e.target.value)}
             placeholder="Type your answer here..."
@@ -302,15 +287,13 @@ export default function QuizAttemptPage() {
             {currentQuestion.answerType === "number"
               ? "Enter a number (exact)"
               : "Single word answer"}
+            <span className="hidden sm:inline"> · press Enter to continue</span>
           </p>
-        </div>
 
-        {/* Navigation */}
-        <div className="flex gap-3">
           <button
-            onClick={handleNext}
+            type="submit"
             disabled={submitting}
-            className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="mt-4 w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
             {submitting
               ? "Submitting..."
@@ -318,7 +301,7 @@ export default function QuizAttemptPage() {
               ? "Submit Quiz"
               : "Next"}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );
