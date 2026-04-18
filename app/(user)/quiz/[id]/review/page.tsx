@@ -2,6 +2,15 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Header } from "@/components/header";
 
 export default async function ReviewPage({
@@ -21,7 +30,6 @@ export default async function ReviewPage({
 
   if (!quiz) redirect("/");
 
-  // If quiz is still active, redirect
   if (new Date() < quiz.endTime) {
     redirect(`/quiz/${quizId}`);
   }
@@ -37,55 +45,218 @@ export default async function ReviewPage({
     activeAttempt?.answers.map((a) => [a.questionId, a]) ?? []
   );
 
+  const score = Number(activeAttempt?.rawScore ?? 0);
+  const totalQuestions = quiz.questions.length;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="max-w-lg mx-auto px-4 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">{quiz.title}</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+      <Box
+        sx={{
+          maxWidth: 720,
+          mx: "auto",
+          px: { xs: 2, sm: 3 },
+          py: { xs: 3, md: 5 },
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+        }}
+      >
+        <Box>
+          <Button
+            component={Link}
+            href="/quizzes"
+            size="small"
+            startIcon={<ArrowBackRoundedIcon />}
+            sx={{ color: "text.secondary", mb: 1, px: 0 }}
+          >
+            Back to quizzes
+          </Button>
+          <Typography variant="h5" fontWeight={800}>
+            {quiz.title}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             {quiz.biblePortion}
-          </p>
-        </div>
+          </Typography>
+        </Box>
 
-        <div className="space-y-3">
+        {activeAttempt && (
+          <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
+            <CardContent
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                py: 2.5,
+              }}
+            >
+              <Box>
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{ lineHeight: 1 }}
+                >
+                  Your score
+                </Typography>
+                <Typography
+                  variant="h4"
+                  sx={{ color: "primary.main", fontWeight: 800, mt: 0.5 }}
+                >
+                  {score}
+                  <Box
+                    component="span"
+                    sx={{
+                      color: "text.secondary",
+                      fontSize: "1.25rem",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {" "}
+                    / {totalQuestions}
+                  </Box>
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: "right" }}>
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{ lineHeight: 1 }}
+                >
+                  Accuracy
+                </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 700, mt: 0.5 }}
+                >
+                  {totalQuestions > 0
+                    ? Math.round((score / totalQuestions) * 100)
+                    : 0}
+                  %
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {quiz.questions.map((q, i) => {
             const ans = answerMap.get(q.id);
+            const correct = ans?.isCorrect ?? false;
+            const answered = !!ans?.submittedText;
             return (
-              <div
+              <Card
                 key={q.id}
-                className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                elevation={0}
+                sx={{
+                  border: "1px solid",
+                  borderColor: correct
+                    ? "success.main"
+                    : answered
+                    ? "error.main"
+                    : "divider",
+                  bgcolor: "background.paper",
+                }}
               >
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Question {i + 1}
-                </p>
-                <p className="font-medium mt-1">{q.questionText}</p>
-                <p className="text-sm text-green-600 dark:text-green-400 mt-2">
-                  Correct: {q.acceptedAnswers.join(", ")}
-                </p>
-                {ans && (
-                  <div className="flex items-center gap-2 mt-2 text-sm">
-                    <span>{ans.isCorrect ? "\u2705" : "\u274C"}</span>
-                    <span>
-                      Your answer:{" "}
-                      <span className="font-medium">
-                        {ans.submittedText || "(no answer)"}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </div>
+                <CardContent sx={{ py: 2 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 2,
+                      mb: 1,
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ fontWeight: 600 }}
+                    >
+                      Question {i + 1}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      icon={
+                        correct ? (
+                          <CheckRoundedIcon />
+                        ) : (
+                          <CloseRoundedIcon />
+                        )
+                      }
+                      label={correct ? "+1 pt" : "0 pts"}
+                      color={correct ? "success" : "default"}
+                      variant={correct ? "filled" : "outlined"}
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Box>
+
+                  <Typography sx={{ fontWeight: 500, mb: 1.5 }}>
+                    {q.questionText}
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.5,
+                    }}
+                  >
+                    <Box sx={{ display: "flex", gap: 1, alignItems: "baseline" }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ minWidth: 92 }}
+                      >
+                        Your answer
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          color: correct
+                            ? "success.main"
+                            : answered
+                            ? "error.main"
+                            : "text.secondary",
+                          fontStyle: answered ? "normal" : "italic",
+                        }}
+                      >
+                        {ans?.submittedText || "(no answer)"}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 1, alignItems: "baseline" }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ minWidth: 92 }}
+                      >
+                        Correct
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600, color: "success.main" }}
+                      >
+                        {q.acceptedAnswers.join(", ")}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
             );
           })}
-        </div>
+        </Box>
 
-        <Link
-          href="/"
-          className="block w-full text-center py-3 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+        <Button
+          component={Link}
+          href="/quizzes"
+          variant="outlined"
+          size="large"
+          startIcon={<ArrowBackRoundedIcon />}
         >
-          Back
-        </Link>
-      </main>
+          Back to quizzes
+        </Button>
+      </Box>
     </div>
   );
 }

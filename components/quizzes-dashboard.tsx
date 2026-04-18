@@ -264,18 +264,8 @@ export function QuizzesDashboard(props: Props) {
             <Typography variant="overline" color="text.secondary">Past</Typography>
           </Box>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {pastQuizzes.map((quiz) => (
-              <Card
-                key={quiz.id}
-                elevation={0}
-                sx={{
-                  position: "relative",
-                  cursor: "default",
-                  opacity: 0.85,
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
+            {pastQuizzes.map((quiz) => {
+              const card = (
                 <CardContent>
                   <Box
                     sx={{
@@ -283,7 +273,6 @@ export function QuizzesDashboard(props: Props) {
                       justifyContent: "space-between",
                       alignItems: "flex-start",
                       gap: 2,
-                      pr: 4,
                     }}
                   >
                     <Box>
@@ -350,25 +339,41 @@ export function QuizzesDashboard(props: Props) {
                         month: "short",
                       })}
                     </Typography>
+                    {quiz.attempted && (
+                      <Typography
+                        variant="caption"
+                        color="primary.main"
+                        sx={{ display: "flex", alignItems: "center", gap: 0.5, fontWeight: 600 }}
+                      >
+                        Review answers →
+                      </Typography>
+                    )}
                   </Box>
                 </CardContent>
-                <Box
-                  sx={{ position: "absolute", top: 6, right: 6, zIndex: 1 }}
+              );
+              return (
+                <Card
+                  key={quiz.id}
+                  elevation={0}
+                  sx={{
+                    opacity: quiz.attempted ? 1 : 0.75,
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
                 >
-                  <ShareButton
-                    variant="icon"
-                    title={`${quiz.title} · YPE Bible Quiz`}
-                    text={`${quiz.title} — ${quiz.biblePortion} · YPE Bible Quiz.`}
-                    url={`${
-                      typeof window !== "undefined"
-                        ? window.location.origin
-                        : ""
-                    }/q/${quiz.id}`}
-                    label="Share quiz"
-                  />
-                </Box>
-              </Card>
-            ))}
+                  {quiz.attempted ? (
+                    <CardActionArea
+                      component={Link}
+                      href={`/quiz/${quiz.id}/review`}
+                    >
+                      {card}
+                    </CardActionArea>
+                  ) : (
+                    card
+                  )}
+                </Card>
+              );
+            })}
           </Box>
         </Box>
       )}

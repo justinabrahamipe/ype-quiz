@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
 import { PwaRegister } from "@/components/pwa-register";
+import { NavProgress } from "@/components/nav-progress";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -64,7 +65,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} font-sans antialiased bg-background text-foreground`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          <NavProgress />
+          {children}
+        </Providers>
         <PwaRegister />
       </body>
     </html>
