@@ -49,7 +49,6 @@ export async function GET() {
   }
 
   const name = user?.name || session.user.name || "Quizzer";
-  const image = user?.image || session.user.image || null;
 
   const rankLabel =
     rank === 1 ? "1st" : rank === 2 ? "2nd" : rank === 3 ? "3rd" : `#${rank}`;
@@ -116,42 +115,24 @@ export async function GET() {
             textAlign: "center",
           }}
         >
-          {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={image}
-              alt=""
-              width={240}
-              height={240}
-              style={{
-                width: 240,
-                height: 240,
-                borderRadius: 120,
-                border: `6px solid ${accent}`,
-                objectFit: "cover",
-                marginBottom: 28,
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 240,
-                height: 240,
-                borderRadius: 120,
-                border: `6px solid ${accent}`,
-                background: "linear-gradient(135deg, #0f766e, #14b8a6)",
-                fontSize: 110,
-                fontWeight: 800,
-                color: "#f0fdfa",
-                marginBottom: 28,
-              }}
-            >
-              {name[0].toUpperCase()}
-            </div>
-          )}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 240,
+              height: 240,
+              borderRadius: 120,
+              border: `6px solid ${accent}`,
+              background: "linear-gradient(135deg, #0f766e, #14b8a6)",
+              fontSize: 110,
+              fontWeight: 800,
+              color: "#f0fdfa",
+              marginBottom: 28,
+            }}
+          >
+            {(name[0] || "?").toUpperCase()}
+          </div>
 
           <div
             style={{

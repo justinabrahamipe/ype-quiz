@@ -29,9 +29,12 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
   const topLines = topN
     .map((m, i) => `${i + 1}. ${m.name} — ${m.score} pts`)
     .join("\n");
-  const shareText = topN.length
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  const shareText = (topN.length
     ? `Top ${topN.length} on the YPE Bible Quiz leaderboard:\n\n${topLines}`
-    : "Check out the YPE Bible Quiz leaderboard.";
+    : "Check out the YPE Bible Quiz leaderboard.") + `\n\n${siteUrl}`;
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", px: { xs: 1.5, sm: 3 }, py: 3, pb: 12 }}>

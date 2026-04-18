@@ -133,39 +133,29 @@ export async function GET() {
                 {i + 1}
               </div>
 
-              {m.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={m.image}
-                  alt=""
-                  width={64}
-                  height={64}
-                  style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    objectFit: "cover",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
-                    background:
-                      "linear-gradient(135deg, #0f766e, #14b8a6)",
-                    fontSize: 28,
-                    fontWeight: 700,
-                    color: "#f0fdfa",
-                  }}
-                >
-                  {m.name[0].toUpperCase()}
-                </div>
-              )}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  background:
+                    i === 0
+                      ? "linear-gradient(135deg, #b45309, #f59e0b)"
+                      : i === 1
+                      ? "linear-gradient(135deg, #64748b, #cbd5e1)"
+                      : i === 2
+                      ? "linear-gradient(135deg, #78350f, #d97706)"
+                      : "linear-gradient(135deg, #0f766e, #14b8a6)",
+                  fontSize: 28,
+                  fontWeight: 700,
+                  color: "#f0fdfa",
+                }}
+              >
+                {(m.name[0] || "?").toUpperCase()}
+              </div>
 
               <div
                 style={{

@@ -63,6 +63,10 @@ export function YouContent(props: Props) {
       } taken`
     );
     lines.push("Join us — a weekly Bible quiz every Wed & Thu.");
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "");
+    if (siteUrl) lines.push(siteUrl);
     return lines.join("\n");
   })();
 

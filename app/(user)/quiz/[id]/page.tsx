@@ -2,6 +2,13 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogActions from "@mui/material/DialogActions";
+import Button from "@mui/material/Button";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { toast } from "@/components/toaster";
 
 type Question = {
@@ -31,6 +38,7 @@ export default function QuizAttemptPage() {
   const [submitting, setSubmitting] = useState(false);
   const [existingAnswers, setExistingAnswers] = useState<Map<string, string>>(new Map());
   const [timeSpent, setTimeSpent] = useState<Map<string, number>>(new Map());
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   const questionStartRef = useRef<string>(new Date().toISOString());
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -152,19 +160,18 @@ export default function QuizAttemptPage() {
     window.history.pushState(null, "", window.location.href);
     const handler = () => {
       if (leavingRef.current) return;
-      const ok = window.confirm(
-        "Leave quiz? You won't be able to answer this question again."
-      );
-      if (ok) {
-        leavingRef.current = true;
-        window.history.back();
-      } else {
-        window.history.pushState(null, "", window.location.href);
-      }
+      window.history.pushState(null, "", window.location.href);
+      setShowLeaveDialog(true);
     };
     window.addEventListener("popstate", handler);
     return () => window.removeEventListener("popstate", handler);
   }, [loading]);
+
+  const confirmLeave = () => {
+    leavingRef.current = true;
+    setShowLeaveDialog(false);
+    window.history.go(-2);
+  };
 
   // Timer countdown
   useEffect(() => {
@@ -365,6 +372,51 @@ export default function QuizAttemptPage() {
           </button>
         </form>
       </div>
+
+      <Dialog
+        open={showLeaveDialog}
+        onClose={() => setShowLeaveDialog(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, mx: 2 } }}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            pb: 1,
+          }}
+        >
+          <WarningAmberRoundedIcon sx={{ color: "warning.main" }} />
+          Leave quiz?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontSize: "0.95rem" }}>
+            If you leave now, you won&apos;t be able to answer this question
+            again. Your progress on other questions will be kept.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setShowLeaveDialog(false)}
+            variant="contained"
+            color="primary"
+            disableElevation
+            sx={{ flex: 1 }}
+          >
+            Stay
+          </Button>
+          <Button
+            onClick={confirmLeave}
+            variant="outlined"
+            color="warning"
+            sx={{ flex: 1 }}
+          >
+            Leave
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

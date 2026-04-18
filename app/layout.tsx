@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
+import { PwaRegister } from "@/components/pwa-register";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -11,11 +12,27 @@ const geistSans = localFont({
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ype-quiz.vercel.app";
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafaf9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0a09" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "YPE Bible Quiz · Mahanaim Church of God",
   description:
     "A weekly Bible quiz by the Young People's Endeavour of Mahanaim Church of God, Manchester. 10 chapters a week, attempts on Wednesday & Thursday — starting from Matthew 1–10.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "YPE Quiz",
+    statusBarStyle: "black-translucent",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },
@@ -48,6 +65,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} font-sans antialiased bg-background text-foreground`}>
         <Providers>{children}</Providers>
+        <PwaRegister />
       </body>
     </html>
   );
