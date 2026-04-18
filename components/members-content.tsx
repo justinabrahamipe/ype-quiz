@@ -10,6 +10,7 @@ import Divider from "@mui/material/Divider";
 import Chip from "@mui/material/Chip";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
+import { ShareButton } from "@/components/share-button";
 
 type Member = {
   id: string;
@@ -24,6 +25,14 @@ type Member = {
 export function MembersContent({ members, currentUserId }: { members: Member[]; currentUserId?: string }) {
   const maxScore = members.length > 0 ? members[0].score || 1 : 1;
 
+  const topN = members.slice(0, Math.min(5, members.length));
+  const topLines = topN
+    .map((m, i) => `${i + 1}. ${m.name} — ${m.score} pts`)
+    .join("\n");
+  const shareText = topN.length
+    ? `Top ${topN.length} on the YPE Bible Quiz leaderboard:\n\n${topLines}`
+    : "Check out the YPE Bible Quiz leaderboard.";
+
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", px: { xs: 1.5, sm: 3 }, py: 3, pb: 12 }}>
       {/* Header */}
@@ -37,6 +46,11 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
             </Typography>
           </Box>
         </Box>
+        <ShareButton
+          title="YPE Bible Quiz Leaderboard"
+          text={shareText}
+          label="Share"
+        />
       </Box>
 
       {/* Top 3 Podium - only show if top scorer has points */}

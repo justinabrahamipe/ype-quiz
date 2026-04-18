@@ -9,15 +9,33 @@ const geistSans = localFont({
   weight: "100 900",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ype-quiz.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Mahanaim Bible Quiz",
-  description: "Mahanaim Church YPE Bible Quiz Platform",
+  metadataBase: new URL(siteUrl),
+  title: "YPE Bible Quiz · Mahanaim Church of God",
+  description:
+    "A weekly Bible quiz by the Young People's Endeavour of Mahanaim Church of God, Manchester. 10 chapters a week, attempts on Wednesday & Thursday — starting from Matthew 1–10.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },
       { url: "/favicon-192.png", sizes: "192x192", type: "image/png" },
     ],
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "YPE Bible Quiz",
+    title: "YPE Bible Quiz · Mahanaim Church of God",
+    description:
+      "A weekly Bible quiz by YPE, Mahanaim Church of God, Manchester. 10 chapters a week. Wed & Thu.",
+    url: siteUrl,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "YPE Bible Quiz",
+    description:
+      "A weekly Bible quiz by YPE, Mahanaim Church of God, Manchester.",
   },
 };
 

@@ -17,6 +17,7 @@ import { EditName } from "@/components/edit-name";
 import Link from "next/link";
 import CardActionArea from "@mui/material/CardActionArea";
 import { MessageUsLink } from "@/components/message-us-link";
+import { ShareButton } from "@/components/share-button";
 
 type Props = {
   name: string;
@@ -46,6 +47,24 @@ export function YouContent(props: Props) {
     totalScore, quizzesAttempted, quizzesMissed,
     rank, tiedCount = 0, totalMembers, recentAttempts,
   } = props;
+
+  const shareText = (() => {
+    const lines: string[] = [];
+    if (rank > 0) {
+      lines.push(
+        `I'm ranked #${rank}${totalMembers ? ` of ${totalMembers}` : ""} on the YPE Bible Quiz!`
+      );
+    } else {
+      lines.push("I'm on the YPE Bible Quiz!");
+    }
+    lines.push(
+      `${totalScore} pts · ${quizzesAttempted} ${
+        quizzesAttempted === 1 ? "quiz" : "quizzes"
+      } taken`
+    );
+    lines.push("Join us — a weekly Bible quiz every Wed & Thu.");
+    return lines.join("\n");
+  })();
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", px: { xs: 1.5, sm: 3 }, py: 3, pb: 12, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -82,6 +101,12 @@ export function YouContent(props: Props) {
               )}
             </Box>
           </Box>
+          <ShareButton
+            variant="icon"
+            title="My YPE Bible Quiz standing"
+            text={shareText}
+            label="Share my standing"
+          />
         </CardContent>
       </Card>
 
