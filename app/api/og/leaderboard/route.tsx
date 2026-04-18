@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const WIDTH = 1080;
-const HEIGHT = 1920;
+const HEIGHT = 1350;
 
 export async function GET() {
   try {
@@ -15,7 +15,7 @@ export async function GET() {
         where: { isQualified: true, isApproved: true, role: "user" },
         include: { overallScore: true },
         orderBy: { overallScore: { totalScore: "desc" } },
-        take: 10,
+        take: 8,
       }),
       prisma.user.count({
         where: { isQualified: true, isApproved: true, role: "user" },
@@ -81,7 +81,7 @@ export async function GET() {
             backgroundImage:
               "radial-gradient(circle at 20% 10%, rgba(20,184,166,0.35) 0%, transparent 55%), radial-gradient(circle at 85% 95%, rgba(217,119,6,0.3) 0%, transparent 50%)",
             color: "#f5f5f4",
-            padding: "70px 60px",
+            padding: "50px 55px",
             fontFamily: "sans-serif",
           }}
         >
@@ -90,8 +90,8 @@ export async function GET() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 20,
-              marginBottom: 36,
+              gap: 18,
+              marginBottom: 18,
             }}
           >
             {logo && (
@@ -99,9 +99,9 @@ export async function GET() {
               <img
                 src={logo}
                 alt=""
-                width={80}
-                height={80}
-                style={{ width: 80, height: 80 }}
+                width={72}
+                height={72}
+                style={{ width: 72, height: 72 }}
               />
             )}
             <div
@@ -114,7 +114,7 @@ export async function GET() {
               <div
                 style={{
                   display: "flex",
-                  fontSize: 24,
+                  fontSize: 22,
                   color: "#e7e5e4",
                   fontWeight: 700,
                   letterSpacing: "0.08em",
@@ -127,7 +127,7 @@ export async function GET() {
                 style={{
                   display: "flex",
                   color: "#fbbf24",
-                  fontSize: 34,
+                  fontSize: 30,
                   fontWeight: 800,
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
@@ -142,11 +142,11 @@ export async function GET() {
             style={{
               display: "flex",
               justifyContent: "center",
-              fontSize: 110,
+              fontSize: 80,
               fontWeight: 800,
               lineHeight: 1,
               letterSpacing: "-0.02em",
-              marginBottom: 10,
+              marginBottom: 8,
             }}
           >
             Leaderboard
@@ -155,9 +155,9 @@ export async function GET() {
             style={{
               display: "flex",
               justifyContent: "center",
-              fontSize: 30,
+              fontSize: 24,
               color: "#a8a29e",
-              marginBottom: 50,
+              marginBottom: 28,
             }}
           >
             {`Top ${list.length} of ${totalQualified} qualified member${
@@ -165,16 +165,16 @@ export async function GET() {
             }`}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {list.map((m, i) => (
               <div
                 key={i}
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 22,
-                  padding: "16px 26px",
-                  borderRadius: 20,
+                  gap: 18,
+                  padding: "10px 22px",
+                  borderRadius: 16,
                   background: rowBg(i),
                   border: `1px solid ${rowBorder(i)}`,
                 }}
@@ -184,8 +184,8 @@ export async function GET() {
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
-                    width: 58,
-                    fontSize: 36,
+                    width: 48,
+                    fontSize: 30,
                     fontWeight: 800,
                     color: rankColor(i),
                   }}
@@ -198,12 +198,12 @@ export async function GET() {
                   <img
                     src={m.imageData}
                     alt=""
-                    width={64}
-                    height={64}
+                    width={52}
+                    height={52}
                     style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 32,
+                      width: 52,
+                      height: 52,
+                      borderRadius: 26,
                       objectFit: "cover",
                     }}
                   />
@@ -213,11 +213,11 @@ export async function GET() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      width: 64,
-                      height: 64,
-                      borderRadius: 32,
+                      width: 52,
+                      height: 52,
+                      borderRadius: 26,
                       background: avatarFallback(i),
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: 700,
                       color: "#f0fdfa",
                     }}
@@ -230,7 +230,7 @@ export async function GET() {
                   style={{
                     display: "flex",
                     flex: 1,
-                    fontSize: 34,
+                    fontSize: 28,
                     fontWeight: 600,
                     overflow: "hidden",
                     whiteSpace: "nowrap",
@@ -249,7 +249,7 @@ export async function GET() {
                   <div
                     style={{
                       display: "flex",
-                      fontSize: 38,
+                      fontSize: 32,
                       fontWeight: 800,
                       color: i === 0 ? "#fbbf24" : "#2dd4bf",
                     }}
@@ -259,7 +259,7 @@ export async function GET() {
                   <div
                     style={{
                       display: "flex",
-                      fontSize: 22,
+                      fontSize: 20,
                       color: "#78716c",
                       fontWeight: 500,
                     }}
@@ -274,16 +274,17 @@ export async function GET() {
           <div
             style={{
               marginTop: "auto",
-              paddingTop: 40,
+              paddingTop: 24,
               borderTop: "1px solid rgba(255,255,255,0.08)",
               display: "flex",
               flexDirection: "column",
+              alignItems: "center",
             }}
           >
             <div
               style={{
                 display: "flex",
-                fontSize: 28,
+                fontSize: 22,
                 color: "#e7e5e4",
                 fontWeight: 700,
               }}
@@ -293,9 +294,9 @@ export async function GET() {
             <div
               style={{
                 display: "flex",
-                fontSize: 22,
+                fontSize: 18,
                 color: "#78716c",
-                marginTop: 6,
+                marginTop: 4,
               }}
             >
               Young People&apos;s Endeavour · Weekly Bible Quiz

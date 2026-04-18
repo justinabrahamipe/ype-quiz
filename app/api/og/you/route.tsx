@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const WIDTH = 1080;
-const HEIGHT = 1920;
+const HEIGHT = 1350;
 
 export async function GET() {
   try {
@@ -86,7 +86,7 @@ export async function GET() {
             backgroundColor: "#0c0a09",
             backgroundImage: `radial-gradient(circle at 20% 15%, ${accent}40 0%, transparent 55%), radial-gradient(circle at 80% 95%, rgba(20,184,166,0.3) 0%, transparent 55%)`,
             color: "#f5f5f4",
-            padding: "80px 70px",
+            padding: "50px 60px",
             fontFamily: "sans-serif",
           }}
         >
@@ -103,9 +103,9 @@ export async function GET() {
               <img
                 src={logo}
                 alt=""
-                width={80}
-                height={80}
-                style={{ width: 80, height: 80 }}
+                width={72}
+                height={72}
+                style={{ width: 72, height: 72 }}
               />
             )}
             <div
@@ -118,7 +118,7 @@ export async function GET() {
               <div
                 style={{
                   display: "flex",
-                  fontSize: 24,
+                  fontSize: 22,
                   color: "#e7e5e4",
                   fontWeight: 700,
                   letterSpacing: "0.08em",
@@ -131,7 +131,7 @@ export async function GET() {
                 style={{
                   display: "flex",
                   color: "#fbbf24",
-                  fontSize: 34,
+                  fontSize: 30,
                   fontWeight: 800,
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
@@ -157,15 +157,15 @@ export async function GET() {
               <img
                 src={avatar}
                 alt=""
-                width={240}
-                height={240}
+                width={180}
+                height={180}
                 style={{
-                  width: 240,
-                  height: 240,
-                  borderRadius: 120,
-                  border: `6px solid ${accent}`,
+                  width: 180,
+                  height: 180,
+                  borderRadius: 90,
+                  border: `5px solid ${accent}`,
                   objectFit: "cover",
-                  marginBottom: 28,
+                  marginBottom: 18,
                 }}
               />
             ) : (
@@ -174,15 +174,15 @@ export async function GET() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 240,
-                  height: 240,
-                  borderRadius: 120,
-                  border: `6px solid ${accent}`,
+                  width: 180,
+                  height: 180,
+                  borderRadius: 90,
+                  border: `5px solid ${accent}`,
                   background: "linear-gradient(135deg, #0f766e, #14b8a6)",
-                  fontSize: 110,
+                  fontSize: 90,
                   fontWeight: 800,
                   color: "#f0fdfa",
-                  marginBottom: 28,
+                  marginBottom: 18,
                 }}
               >
                 {(name[0] || "?").toUpperCase()}
@@ -192,10 +192,10 @@ export async function GET() {
             <div
               style={{
                 display: "flex",
-                fontSize: 64,
+                fontSize: 52,
                 fontWeight: 800,
                 letterSpacing: "-0.02em",
-                marginBottom: 10,
+                marginBottom: 6,
               }}
             >
               {name}
@@ -212,12 +212,12 @@ export async function GET() {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 26,
+                    fontSize: 22,
                     color: "#a8a29e",
                     letterSpacing: "0.12em",
                     textTransform: "uppercase",
                     fontWeight: 600,
-                    marginBottom: 18,
+                    marginBottom: 10,
                   }}
                 >
                   Currently ranked
@@ -225,12 +225,12 @@ export async function GET() {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 220,
+                    fontSize: 170,
                     fontWeight: 900,
                     color: accent,
                     lineHeight: 1,
                     letterSpacing: "-0.04em",
-                    marginBottom: 14,
+                    marginBottom: 8,
                   }}
                 >
                   {rankLabel}
@@ -238,9 +238,9 @@ export async function GET() {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 30,
+                    fontSize: 26,
                     color: "#d6d3d1",
-                    marginBottom: 50,
+                    marginBottom: 28,
                   }}
                 >
                   {`of ${totalMembers} member${
@@ -256,25 +256,25 @@ export async function GET() {
               <div
                 style={{
                   display: "flex",
-                  fontSize: 42,
+                  fontSize: 36,
                   fontWeight: 700,
                   color: accent,
-                  marginBottom: 50,
-                  marginTop: 20,
+                  marginBottom: 28,
+                  marginTop: 12,
                 }}
               >
                 Just getting started
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 40 }}>
+            <div style={{ display: "flex", gap: 28 }}>
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  padding: "28px 44px",
-                  borderRadius: 24,
+                  padding: "20px 36px",
+                  borderRadius: 20,
                   background: "rgba(255,255,255,0.05)",
                   border: "1px solid rgba(255,255,255,0.1)",
                 }}
@@ -282,7 +282,7 @@ export async function GET() {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 72,
+                    fontSize: 58,
                     fontWeight: 800,
                     color: accent,
                     lineHeight: 1,
@@ -293,9 +293,9 @@ export async function GET() {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 24,
+                    fontSize: 20,
                     color: "#a8a29e",
-                    marginTop: 8,
+                    marginTop: 6,
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
                   }}
@@ -308,8 +308,8 @@ export async function GET() {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  padding: "28px 44px",
-                  borderRadius: 24,
+                  padding: "20px 36px",
+                  borderRadius: 20,
                   background: "rgba(255,255,255,0.05)",
                   border: "1px solid rgba(255,255,255,0.1)",
                 }}
@@ -317,7 +317,7 @@ export async function GET() {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 72,
+                    fontSize: 58,
                     fontWeight: 800,
                     color: "#2dd4bf",
                     lineHeight: 1,
@@ -328,9 +328,9 @@ export async function GET() {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 24,
+                    fontSize: 20,
                     color: "#a8a29e",
-                    marginTop: 8,
+                    marginTop: 6,
                     letterSpacing: "0.1em",
                     textTransform: "uppercase",
                   }}
@@ -345,14 +345,15 @@ export async function GET() {
             style={{
               display: "flex",
               flexDirection: "column",
-              paddingTop: 30,
+              alignItems: "center",
+              paddingTop: 20,
               borderTop: "1px solid rgba(255,255,255,0.08)",
             }}
           >
             <div
               style={{
                 display: "flex",
-                fontSize: 28,
+                fontSize: 22,
                 fontWeight: 700,
                 color: "#e7e5e4",
               }}
@@ -362,9 +363,9 @@ export async function GET() {
             <div
               style={{
                 display: "flex",
-                fontSize: 22,
+                fontSize: 18,
                 color: "#78716c",
-                marginTop: 6,
+                marginTop: 4,
               }}
             >
               Young People&apos;s Endeavour · Weekly Bible Quiz
