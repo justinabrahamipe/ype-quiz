@@ -3,18 +3,17 @@ import { prisma } from "@/lib/db";
 import { readPublicImageAsDataUri } from "@/lib/og-helpers";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const contentType = "image/png";
+export const alt = "YPE Bible Quiz";
+export const size = { width: 1200, height: 630 };
 
-const WIDTH = 1200;
-const HEIGHT = 630;
-
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export default async function QuizOgImage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   try {
     const { id } = await params;
-
     const [quiz, logo] = await Promise.all([
       prisma.quiz.findUnique({
         where: { id },
@@ -31,7 +30,26 @@ export async function GET(
     ]);
 
     if (!quiz) {
-      return new Response("Quiz not found", { status: 404 });
+      return new ImageResponse(
+        (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#0c0a09",
+              color: "#f5f5f4",
+              fontSize: 48,
+              fontFamily: "sans-serif",
+            }}
+          >
+            YPE Bible Quiz
+          </div>
+        ),
+        size
+      );
     }
 
     const now = new Date();
@@ -75,7 +93,6 @@ export async function GET(
             fontFamily: "sans-serif",
           }}
         >
-          {/* Header */}
           <div
             style={{
               display: "flex",
@@ -139,7 +156,6 @@ export async function GET(
             </div>
           </div>
 
-          {/* Middle: title + portion */}
           <div
             style={{
               display: "flex",
@@ -173,7 +189,6 @@ export async function GET(
             </div>
           </div>
 
-          {/* Bottom: stats + CTA */}
           <div
             style={{
               display: "flex",
@@ -255,13 +270,29 @@ export async function GET(
           </div>
         </div>
       ),
-      { width: WIDTH, height: HEIGHT }
+      size
     );
   } catch (err) {
-    console.error("[og/quiz] failed:", err);
-    return new Response(
-      `Failed to generate image: ${(err as Error)?.message || "unknown"}`,
-      { status: 500 }
+    console.error("[opengraph-image q/id] failed:", err);
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#0c0a09",
+            color: "#f5f5f4",
+            fontSize: 48,
+            fontFamily: "sans-serif",
+          }}
+        >
+          YPE Bible Quiz
+        </div>
+      ),
+      size
     );
   }
 }

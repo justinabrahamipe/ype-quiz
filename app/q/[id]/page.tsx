@@ -32,37 +32,39 @@ async function getQuiz(id: string) {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { id } = await params;
-  const quiz = await getQuiz(id);
-  if (!quiz) return { title: "YPE Bible Quiz" };
+  try {
+    const { id } = await params;
+    const quiz = await getQuiz(id);
+    if (!quiz) return { title: "YPE Bible Quiz" };
 
-  const title = `${quiz.title} · YPE Bible Quiz`;
-  const description = `${quiz.biblePortion} · ${quiz.questionCount} questions. Take the weekly Bible quiz by YPE, Mahanaim Church of God, Manchester.`;
-  const imageUrl = `/api/og/quiz/${id}`;
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://ype-quiz.vercel.app";
+    const title = `${quiz.title} · YPE Bible Quiz`;
+    const description = `${quiz.biblePortion} · ${quiz.questionCount} questions. Take the weekly Bible quiz by YPE, Mahanaim Church of God, Manchester.`;
+    const pageUrl = `${siteUrl}/q/${id}`;
 
-  return {
-    title,
-    description,
-    openGraph: {
-      type: "article",
+    return {
       title,
       description,
-      images: [
-        {
-          url: imageUrl,
-          width: 1080,
-          height: 1350,
-          alt: quiz.title,
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [imageUrl],
-    },
-  };
+      alternates: { canonical: pageUrl },
+      openGraph: {
+        type: "article",
+        url: pageUrl,
+        siteName: "YPE Bible Quiz",
+        title,
+        description,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+      },
+      robots: { index: true, follow: true },
+    };
+  } catch (err) {
+    console.error("[q/id] metadata error:", err);
+    return { title: "YPE Bible Quiz" };
+  }
 }
 
 export default async function QuizSharePage({ params }: Params) {
