@@ -16,6 +16,7 @@ import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
 import { EditName } from "@/components/edit-name";
 import Link from "next/link";
 import CardActionArea from "@mui/material/CardActionArea";
+import { MessageUsLink } from "@/components/message-us-link";
 
 type Props = {
   name: string;
@@ -27,6 +28,7 @@ type Props = {
   quizzesAttempted: number;
   quizzesMissed: number;
   rank: number;
+  tiedCount?: number;
   totalMembers: number;
   recentAttempts: {
     id: string;
@@ -42,7 +44,7 @@ export function YouContent(props: Props) {
   const {
     name, email, image, isQualified, joinedAt,
     totalScore, quizzesAttempted, quizzesMissed,
-    rank, totalMembers, recentAttempts,
+    rank, tiedCount = 0, totalMembers, recentAttempts,
   } = props;
 
   return (
@@ -92,7 +94,9 @@ export function YouContent(props: Props) {
               {rank > 0 ? `#${rank}` : "—"}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Rank {totalMembers > 0 ? `of ${totalMembers}` : ""}
+              {tiedCount > 0
+                ? `Tied with ${tiedCount} ${tiedCount === 1 ? "other" : "others"}`
+                : `Rank ${totalMembers > 0 ? `of ${totalMembers}` : ""}`}
             </Typography>
           </CardContent>
         </Card>
@@ -195,6 +199,10 @@ export function YouContent(props: Props) {
       )}
 
       <Box sx={{ textAlign: "center", pt: 4 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+          Need help or spotted a mistake?{" "}
+          <MessageUsLink label="Message us" subject="YPE Bible Quiz — help" />
+        </Typography>
         <Typography variant="caption" color="text.secondary">
           Mahanaim Bible Quiz
         </Typography>

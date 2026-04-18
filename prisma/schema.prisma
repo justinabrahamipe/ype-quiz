@@ -19,12 +19,6 @@ enum AnswerType {
   number
 }
 
-enum DisputeStatus {
-  pending
-  approved
-  rejected
-}
-
 model User {
   id             String        @id @default(uuid())
   email          String        @unique
@@ -32,12 +26,16 @@ model User {
   image          String?
   role           Role          @default(user)
   isQualified    Boolean       @default(false)
+  isApproved     Boolean       @default(true)
   createdAt      DateTime      @default(now())
   attempts       Attempt[]
-  disputes       Dispute[]
-  resolvedBy     Dispute[]     @relation("ResolvedBy")
   quizzesCreated Quiz[]
   overallScore   OverallScore?
+}
+
+model AppSettings {
+  id          Int     @id @default(1)
+  openSignup  Boolean @default(false)
 }
 
 model Quiz {
@@ -79,6 +77,7 @@ model Attempt {
   rawScore    Decimal?
   bonusPoints Decimal   @default(0)
   isComplete  Boolean   @default(false)
+  archivedAt  DateTime?
   answers     Answer[]
 
   @@unique([quizId, userId])
@@ -94,22 +93,6 @@ model Answer {
   isCorrect        Boolean?
   answeredAt       DateTime  @default(now())
   timeTakenSeconds Int?
-  dispute          Dispute?
-}
-
-model Dispute {
-  id           String        @id @default(uuid())
-  answerId     String        @unique
-  answer       Answer        @relation(fields: [answerId], references: [id])
-  userId       String
-  user         User          @relation(fields: [userId], references: [id])
-  comment      String
-  status       DisputeStatus @default(pending)
-  adminNote    String?
-  resolvedById String?
-  resolvedBy   User?         @relation("ResolvedBy", fields: [resolvedById], references: [id])
-  createdAt    DateTime      @default(now())
-  resolvedAt   DateTime?
 }
 
 model OverallScore {

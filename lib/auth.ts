@@ -20,13 +20,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       });
 
       if (!existing) {
-        const role = user.email === SUPER_ADMIN_EMAIL ? "admin" : "user";
+        const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+        const role = isSuperAdmin ? "admin" : "user";
+        const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+        const openSignup = settings?.openSignup ?? false;
         await prisma.user.create({
           data: {
             email: user.email,
             name: user.name ?? null,
             image: user.image ?? null,
             role,
+            isApproved: isSuperAdmin || openSignup,
           },
         });
       } else {

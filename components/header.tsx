@@ -61,15 +61,15 @@ export function Header() {
         </Box>
 
         {/* Desktop nav links */}
-        <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", gap: 0.5, flexGrow: 1 }}>
+        <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", justifyContent: "space-between", gap: 0.5, flexGrow: 1, mx: 2 }}>
           <Button
             component={Link}
-            href="/"
+            href="/quizzes"
             size="small"
             startIcon={<QuizRoundedIcon sx={{ fontSize: 18 }} />}
             sx={{
-              color: pathname === "/" ? "primary.main" : "text.secondary",
-              fontWeight: pathname === "/" ? 600 : 400,
+              color: pathname === "/quizzes" ? "primary.main" : "text.secondary",
+              fontWeight: pathname === "/quizzes" ? 600 : 400,
               fontSize: "0.8rem",
             }}
           >
@@ -90,16 +90,16 @@ export function Header() {
           </Button>
           <Button
             component={Link}
-            href="/members"
+            href="/leaderboard"
             size="small"
             startIcon={<PeopleRoundedIcon sx={{ fontSize: 18 }} />}
             sx={{
-              color: pathname === "/members" ? "primary.main" : "text.secondary",
-              fontWeight: pathname === "/members" ? 600 : 400,
+              color: pathname === "/leaderboard" ? "primary.main" : "text.secondary",
+              fontWeight: pathname === "/leaderboard" ? 600 : 400,
               fontSize: "0.8rem",
             }}
           >
-            Members
+            Leaderboard
           </Button>
         </Box>
 

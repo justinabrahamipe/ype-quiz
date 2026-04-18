@@ -20,6 +20,8 @@ import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
 import Link from "next/link";
 
+const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || "mahanaimype@gmail.com";
+
 type Answer = {
   id: string;
   submittedText: string | null;
@@ -35,7 +37,6 @@ type Answer = {
 type Attempt = {
   id: string;
   rawScore: string | null;
-  bonusPoints: string;
   completedAt: string | null;
   quiz: { title: string; questionCount: number; isPrerequisite: boolean };
   answers: Answer[];
@@ -122,18 +123,26 @@ export default function UserDetailPage() {
             <Typography variant="body2" color="text.secondary">{user.email}</Typography>
           </Box>
           <Box sx={{ display: "flex", gap: 0.5 }}>
-            <Chip label={user.role} size="small" color={user.role === "admin" ? "primary" : user.role === "quizmaster" ? "secondary" : "default"} />
             <Chip
-              label={user.isQualified ? "Qualified" : "Not Qualified"}
+              label={user.email === SUPER_ADMIN_EMAIL ? "Super Admin" : user.role}
               size="small"
-              color={user.isQualified ? "success" : "warning"}
-              variant="outlined"
+              color={user.email === SUPER_ADMIN_EMAIL ? "secondary" : user.role === "admin" ? "primary" : user.role === "quizmaster" ? "secondary" : "default"}
             />
-            <Chip
-              label={`${user.overallScore ? Number(user.overallScore.totalScore) : 0} pts`}
-              size="small"
-              variant="outlined"
-            />
+            {user.email !== SUPER_ADMIN_EMAIL && (
+              <>
+                <Chip
+                  label={user.isQualified ? "Qualified" : "Not Qualified"}
+                  size="small"
+                  color={user.isQualified ? "success" : "warning"}
+                  variant="outlined"
+                />
+                <Chip
+                  label={`${user.overallScore ? Number(user.overallScore.totalScore) : 0} pts`}
+                  size="small"
+                  variant="outlined"
+                />
+              </>
+            )}
           </Box>
         </Box>
 
@@ -146,7 +155,6 @@ export default function UserDetailPage() {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {user.attempts.map((attempt) => {
               const score = Number(attempt.rawScore ?? 0);
-              const bonus = Number(attempt.bonusPoints ?? 0);
               return (
                 <Card key={attempt.id} elevation={0}>
                   <CardContent sx={{ pb: 1 }}>
@@ -161,8 +169,7 @@ export default function UserDetailPage() {
                       </Box>
                       <Box sx={{ display: "flex", gap: 0.5 }}>
                         <Chip label={`${score}/${attempt.quiz.questionCount}`} size="small" color="primary" />
-                        {bonus > 0 && <Chip label={`+${bonus} bonus`} size="small" color="success" variant="outlined" />}
-                        {attempt.quiz.isPrerequisite && <Chip label="Prerequisite" size="small" color="warning" variant="outlined" />}
+{attempt.quiz.isPrerequisite && <Chip label="Prerequisite" size="small" color="warning" variant="outlined" />}
                       </Box>
                     </Box>
                   </CardContent>

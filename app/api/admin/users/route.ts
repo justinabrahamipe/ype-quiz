@@ -54,8 +54,11 @@ export async function PATCH(req: NextRequest) {
     if (!["admin", "user", "quizmaster"].includes(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
-    if (targetUser.email === SUPER_ADMIN_EMAIL && role === "user") {
-      return NextResponse.json({ error: "Cannot demote super admin" }, { status: 403 });
+    if (targetUser.email === SUPER_ADMIN_EMAIL) {
+      return NextResponse.json({ error: "Cannot change super admin role" }, { status: 403 });
+    }
+    if (targetUser.id === session.user.id) {
+      return NextResponse.json({ error: "Cannot change your own role" }, { status: 403 });
     }
     await prisma.user.update({
       where: { id: user_id },
@@ -71,6 +74,27 @@ export async function PATCH(req: NextRequest) {
       data: { isQualified: !targetUser.isQualified },
     });
     return NextResponse.json({ updated: true, field: "isQualified", value: !targetUser.isQualified });
+  }
+
+  // Approve a pending user
+  if (action === "approve") {
+    await prisma.user.update({
+      where: { id: user_id },
+      data: { isApproved: true },
+    });
+    return NextResponse.json({ updated: true, field: "isApproved", value: true });
+  }
+
+  // Revoke approval (put a user back into pending)
+  if (action === "revoke_approval") {
+    if (targetUser.email === SUPER_ADMIN_EMAIL) {
+      return NextResponse.json({ error: "Cannot revoke super admin" }, { status: 403 });
+    }
+    await prisma.user.update({
+      where: { id: user_id },
+      data: { isApproved: false },
+    });
+    return NextResponse.json({ updated: true, field: "isApproved", value: false });
   }
 
   // Edit score
@@ -115,9 +139,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Cannot delete super admin" }, { status: 403 });
   }
 
-  // Delete in order: disputes, answers, attempts, overallScore, then user
-  await prisma.dispute.deleteMany({ where: { userId: user_id } });
-  await prisma.dispute.deleteMany({ where: { resolvedById: user_id } });
+  // Delete in order: answers, attempts, overallScore, then user
   await prisma.answer.deleteMany({ where: { attempt: { userId: user_id } } });
   await prisma.attempt.deleteMany({ where: { userId: user_id } });
   await prisma.overallScore.deleteMany({ where: { userId: user_id } });

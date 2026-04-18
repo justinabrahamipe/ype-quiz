@@ -7,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user?.id || session.user.role !== "admin") {
+  if (!session?.user?.id || (session.user.role !== "admin" && session.user.role !== "quizmaster")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -44,7 +44,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user?.id || session.user.role !== "admin") {
+  if (!session?.user?.id || (session.user.role !== "admin" && session.user.role !== "quizmaster")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

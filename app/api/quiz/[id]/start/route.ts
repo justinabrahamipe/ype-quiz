@@ -27,12 +27,18 @@ export async function POST(
     return NextResponse.json({ error: "Quiz is not active" }, { status: 403 });
   }
 
-  // Non-prerequisite quizzes require user to be qualified
+  // Non-prerequisite quizzes require the user to be both approved and qualified
   if (!quiz.isPrerequisite) {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { isQualified: true },
+      select: { isQualified: true, isApproved: true },
     });
+    if (!user?.isApproved) {
+      return NextResponse.json(
+        { error: "Your account is pending approval" },
+        { status: 403 }
+      );
+    }
     if (!user?.isQualified) {
       return NextResponse.json(
         { error: "You must pass the prerequisite quiz first" },
@@ -41,10 +47,17 @@ export async function POST(
     }
   }
 
-  const existingAttempt = await prisma.attempt.findUnique({
+  let existingAttempt = await prisma.attempt.findUnique({
     where: { quizId_userId: { quizId, userId: session.user.id } },
     include: { answers: true },
   });
+
+  // If the previous attempt was archived by an admin, clear it so the user can retry.
+  if (existingAttempt?.archivedAt) {
+    await prisma.answer.deleteMany({ where: { attemptId: existingAttempt.id } });
+    await prisma.attempt.delete({ where: { id: existingAttempt.id } });
+    existingAttempt = null;
+  }
 
   if (existingAttempt?.isComplete) {
     // Allow retry for prerequisite quizzes if user hasn't qualified yet

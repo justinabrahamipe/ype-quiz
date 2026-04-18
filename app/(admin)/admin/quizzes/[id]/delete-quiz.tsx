@@ -47,7 +47,7 @@ export function DeleteQuiz({ quizId, quizTitle }: { quizId: string; quizTitle: s
         <DialogTitle sx={{ color: "error.main" }}>Delete Quiz</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            This will permanently delete <strong>{quizTitle}</strong> and all its questions, attempts, answers, and disputes. This cannot be undone.
+            This will permanently delete <strong>{quizTitle}</strong> and all its questions, attempts, and answers. This cannot be undone.
           </Typography>
           <Typography variant="body2" sx={{ mb: 1.5 }}>
             Type <strong>DELETE</strong> to confirm:

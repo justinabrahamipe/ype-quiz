@@ -16,6 +16,12 @@ import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import Button from "@mui/material/Button";
 
 type Answer = {
   id: string;
@@ -32,7 +38,6 @@ type Submission = {
   userImage: string | null;
   completedAt: string;
   rawScore: number;
-  bonusPoints: number;
   answers: Answer[];
 };
 
@@ -47,13 +52,33 @@ export function QuizSubmissions({
   quizId,
   submissions,
   questions,
+  canDelete = false,
 }: {
   quizId: string;
   submissions: Submission[];
   questions: Question[];
+  canDelete?: boolean;
 }) {
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Submission | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const res = await fetch(`/api/admin/attempts/${deleteTarget.attemptId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      toast("Submission removed", "success");
+      setDeleteTarget(null);
+      router.refresh();
+    } else {
+      toast("Failed to remove", "error");
+    }
+    setDeleting(false);
+  };
 
   const toggleAnswer = async (answerId: string, userId: string) => {
     const res = await fetch(`/api/admin/users/${userId}`, {
@@ -79,7 +104,7 @@ export function QuizSubmissions({
       <Card elevation={0}>
         {submissions.map((sub, i) => {
           const isExpanded = expandedId === sub.attemptId;
-          const total = sub.rawScore + sub.bonusPoints;
+          const total = sub.rawScore;
           return (
             <Box key={sub.attemptId}>
               {i > 0 && <Divider />}
@@ -125,6 +150,20 @@ export function QuizSubmissions({
                 <Typography variant="caption" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
                   {sub.completedAt && new Date(sub.completedAt).toLocaleString()}
                 </Typography>
+                {canDelete && (
+                  <Tooltip title="Remove submission (archives it; user can retry)">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(sub);
+                      }}
+                      sx={{ color: "error.main" }}
+                    >
+                      <DeleteOutlineRoundedIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <ExpandMoreRoundedIcon
                   sx={{
                     fontSize: 20,
@@ -199,6 +238,26 @@ export function QuizSubmissions({
           );
         })}
       </Card>
+
+      <Dialog open={!!deleteTarget} onClose={() => !deleting && setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Remove submission?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            <b>{deleteTarget?.userName || deleteTarget?.userEmail}</b>&apos;s attempt
+            will be archived and their overall score recalculated. The user
+            won&apos;t see this attempt and can try again — at which point the
+            archived record is cleared.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button onClick={confirmDelete} color="error" variant="contained" disabled={deleting}>
+            {deleting ? "Removing..." : "Remove"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </section>
   );
 }

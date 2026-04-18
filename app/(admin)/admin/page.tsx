@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
+import { QualifyingQuizButton } from "@/components/qualifying-quiz-button";
 
 export default async function AdminDashboard() {
   const session = await auth();
@@ -11,7 +12,7 @@ export default async function AdminDashboard() {
 
   const now = new Date();
 
-  const [totalUsers, totalQuizzes, activeQuiz, quizzes] = await Promise.all([
+  const [totalUsers, totalQuizzes, activeQuiz, quizzes, hasPrerequisite] = await Promise.all([
     prisma.user.count(),
     prisma.quiz.count(),
     prisma.quiz.findFirst({
@@ -21,9 +22,11 @@ export default async function AdminDashboard() {
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { attempts: true } } },
     }),
+    prisma.quiz.findFirst({ where: { isPrerequisite: true }, select: { id: true } }),
   ]);
 
-  const getStatus = (quiz: { startTime: Date; endTime: Date }) => {
+  const getStatus = (quiz: { startTime: Date; endTime: Date; isPrerequisite: boolean }) => {
+    if (quiz.isPrerequisite) return "Qualifying";
     if (now < quiz.startTime) return "Upcoming";
     if (now <= quiz.endTime) return "Active";
     return "Ended";
@@ -70,6 +73,7 @@ export default async function AdminDashboard() {
               Manage Users
             </Link>
           )}
+          {!hasPrerequisite && <QualifyingQuizButton />}
         </div>
 
         {/* Quiz Table */}
@@ -107,6 +111,8 @@ export default async function AdminDashboard() {
                             ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
                             : status === "Upcoming"
                             ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                            : status === "Qualifying"
+                            ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
                             : "bg-[var(--surface)] text-[var(--muted)]"
                         }`}
                       >
@@ -121,14 +127,6 @@ export default async function AdminDashboard() {
                       >
                         View
                       </Link>
-                      {status === "Ended" && (
-                        <Link
-                          href={`/admin/quizzes/${quiz.id}/disputes`}
-                          className="text-amber-600 dark:text-amber-400 hover:underline font-medium"
-                        >
-                          Disputes
-                        </Link>
-                      )}
                     </td>
                   </tr>
                 );

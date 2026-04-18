@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
-import { DisputeButton } from "../results/dispute-button";
+import { MessageUsLink } from "@/components/message-us-link";
 
 export default async function SubmittedPage({
   params,
@@ -27,13 +27,13 @@ export default async function SubmittedPage({
     where: { quizId_userId: { quizId, userId: session.user.id } },
     include: {
       answers: {
-        include: { question: true, dispute: true },
+        include: { question: true },
         orderBy: { question: { orderIndex: "asc" } },
       },
     },
   });
 
-  if (!attempt) redirect(`/quiz/${quizId}`);
+  if (!attempt || attempt.archivedAt) redirect(`/quiz/${quizId}`);
 
   // For prerequisite quizzes, show immediate results
   if (quiz.isPrerequisite && attempt.rawScore !== null) {
@@ -111,13 +111,14 @@ export default async function SubmittedPage({
                     Correct: {ans.question.acceptedAnswers[0]}
                   </p>
                 )}
-                {!ans.dispute && (
-                  <DisputeButton answerId={ans.id} />
-                )}
-                {ans.dispute && (
-                  <p className="text-xs mt-2 text-[var(--muted)]">
-                    Dispute {ans.dispute.status}
-                  </p>
+                {wrong && (
+                  <div className="mt-2">
+                    <MessageUsLink
+                      label="Think this answer should be accepted? Message us"
+                      subject={`Answer review — ${quiz.title}`}
+                      body={`Question: ${ans.question.questionText}\nMy answer: ${ans.submittedText || "(empty)"}\n\nWhy I think it should be accepted:\n`}
+                    />
+                  </div>
                 )}
               </div>
               );

@@ -9,10 +9,20 @@ export default async function MembersPage() {
   const userId = session?.user?.id;
 
   const qualifiedUsers = await prisma.user.findMany({
-    where: { isQualified: true, role: "user" },
+    where: { isQualified: true, isApproved: true, role: "user" },
     include: {
       overallScore: true,
-      _count: { select: { attempts: { where: { isComplete: true } } } },
+      _count: {
+        select: {
+          attempts: {
+            where: {
+              isComplete: true,
+              archivedAt: null,
+              quiz: { isPrerequisite: false },
+            },
+          },
+        },
+      },
     },
     orderBy: { overallScore: { totalScore: "desc" } },
   });

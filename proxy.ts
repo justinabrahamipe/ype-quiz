@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = await getToken({
     req,
@@ -21,8 +21,8 @@ export async function middleware(req: NextRequest) {
     if (token.role !== "admin" && token.role !== "quizmaster") {
       return NextResponse.redirect(new URL("/", req.url));
     }
-    // Quizmasters can only access quiz-related admin pages
-    if (token.role === "quizmaster" && (pathname === "/admin/users" || pathname.includes("/disputes"))) {
+    // Quizmasters can access quiz-related admin pages but not user management
+    if (token.role === "quizmaster" && pathname === "/admin/users") {
       return NextResponse.redirect(new URL("/admin", req.url));
     }
   }

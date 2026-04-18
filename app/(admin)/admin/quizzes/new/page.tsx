@@ -24,11 +24,15 @@ export default function CreateQuizPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleNext = () => {
-    if (!title || !biblePortion || !startDateTime || !endDateTime || questionCount < 1) {
+    if (!title || !biblePortion || questionCount < 1) {
       toast("Please fill in all fields", "error");
       return;
     }
-    if (new Date(endDateTime) <= new Date(startDateTime)) {
+    if (!isPrerequisite && (!startDateTime || !endDateTime)) {
+      toast("Please set start and end times", "error");
+      return;
+    }
+    if (!isPrerequisite && new Date(endDateTime) <= new Date(startDateTime)) {
       toast("End time must be after start time", "error");
       return;
     }
@@ -108,6 +112,10 @@ export default function CreateQuizPage() {
     }
 
     setSubmitting(true);
+    const now = new Date();
+    const farFuture = new Date();
+    farFuture.setFullYear(farFuture.getFullYear() + 10);
+
     try {
       const res = await fetch("/api/admin/quiz", {
         method: "POST",
@@ -115,8 +123,8 @@ export default function CreateQuizPage() {
         body: JSON.stringify({
           title,
           biblePortion,
-          startDateTime,
-          endDateTime,
+          startDateTime: isPrerequisite ? now.toISOString() : startDateTime,
+          endDateTime: isPrerequisite ? farFuture.toISOString() : endDateTime,
           questionCount,
           isPrerequisite,
           questions: questions.map((q) => ({
@@ -170,28 +178,32 @@ export default function CreateQuizPage() {
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Start Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                value={startDateTime}
-                onChange={(e) => setStartDateTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                End Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                value={endDateTime}
-                onChange={(e) => setEndDateTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
+            {!isPrerequisite && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Start Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={startDateTime}
+                    onChange={(e) => setStartDateTime(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    End Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={endDateTime}
+                    onChange={(e) => setEndDateTime(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </>
+            )}
             <div>
               <label className="block text-sm font-medium mb-1">
                 Number of Questions

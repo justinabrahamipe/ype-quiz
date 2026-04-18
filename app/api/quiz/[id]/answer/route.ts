@@ -29,7 +29,7 @@ export async function POST(
     where: { quizId_userId: { quizId, userId: session.user.id } },
   });
 
-  if (!attempt || attempt.isComplete) {
+  if (!attempt || attempt.isComplete || attempt.archivedAt) {
     return NextResponse.json({ error: "No active attempt" }, { status: 403 });
   }
 

@@ -29,7 +29,7 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
         <Box>
-          <Typography variant="h5" className="gradient-text">Members</Typography>
+          <Typography variant="h5" className="gradient-text">Leaderboard</Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
             <PeopleRoundedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
             <Typography variant="body2" color="text.secondary">

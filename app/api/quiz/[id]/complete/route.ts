@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isCorrect as checkAnswer } from "@/lib/answer-matcher";
+import { updateOverallScore } from "@/lib/scoring";
 
 export async function POST(
   req: NextRequest,
@@ -19,7 +20,7 @@ export async function POST(
     include: { answers: true },
   });
 
-  if (!attempt) {
+  if (!attempt || attempt.archivedAt) {
     return NextResponse.json({ error: "No attempt found" }, { status: 404 });
   }
 
@@ -38,51 +39,50 @@ export async function POST(
     include: { questions: true },
   });
 
-  if (quiz?.isPrerequisite) {
-    // Re-fetch answers fresh after marking complete
-    const freshAnswers = await prisma.answer.findMany({
-      where: { attemptId: attempt.id },
-    });
+  if (!quiz) {
+    return NextResponse.json({ submitted: true });
+  }
 
-    let correct = 0;
-    for (const question of quiz.questions) {
-      // Find the latest answer for this question
-      const userAnswers = freshAnswers.filter((a) => a.questionId === question.id);
-      const userAnswer = userAnswers[userAnswers.length - 1];
-      if (userAnswer?.submittedText) {
-        const isCorrect = checkAnswer(
-          userAnswer.submittedText!,
-          question.acceptedAnswers,
-          question.answerType as "text" | "number"
-        );
-        if (isCorrect) correct++;
+  // Grade immediately so the user sees their score right away
+  const freshAnswers = await prisma.answer.findMany({
+    where: { attemptId: attempt.id },
+  });
 
-        // Mark all answers for this question
-        for (const ans of userAnswers) {
-          await prisma.answer.update({
-            where: { id: ans.id },
-            data: { isCorrect: ans.id === userAnswer.id ? isCorrect : false },
-          });
-        }
-      } else {
-        // No answer — mark as wrong
-        for (const ans of userAnswers) {
-          await prisma.answer.update({
-            where: { id: ans.id },
-            data: { isCorrect: false },
-          });
-        }
+  let correct = 0;
+  for (const question of quiz.questions) {
+    const userAnswers = freshAnswers.filter((a) => a.questionId === question.id);
+    const userAnswer = userAnswers[userAnswers.length - 1];
+    if (userAnswer?.submittedText) {
+      const isCorrect = checkAnswer(
+        userAnswer.submittedText!,
+        question.acceptedAnswers,
+        question.answerType as "text" | "number"
+      );
+      if (isCorrect) correct++;
+
+      for (const ans of userAnswers) {
+        await prisma.answer.update({
+          where: { id: ans.id },
+          data: { isCorrect: ans.id === userAnswer.id ? isCorrect : false },
+        });
+      }
+    } else {
+      for (const ans of userAnswers) {
+        await prisma.answer.update({
+          where: { id: ans.id },
+          data: { isCorrect: false },
+        });
       }
     }
+  }
 
+  await prisma.attempt.update({
+    where: { id: attempt.id },
+    data: { rawScore: correct },
+  });
+
+  if (quiz.isPrerequisite) {
     const percentage = (correct / quiz.questions.length) * 100;
-    const rawScore = correct;
-
-    await prisma.attempt.update({
-      where: { id: attempt.id },
-      data: { rawScore },
-    });
-
     if (percentage >= 70) {
       await prisma.user.update({
         where: { id: session.user.id },
@@ -99,6 +99,8 @@ export async function POST(
       qualified: percentage >= 70,
     });
   }
+
+  await updateOverallScore(session.user.id);
 
   return NextResponse.json({ submitted: true });
 }

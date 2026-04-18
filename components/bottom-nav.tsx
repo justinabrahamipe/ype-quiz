@@ -13,9 +13,9 @@ export function BottomNav() {
   const pathname = usePathname();
 
   const getValue = () => {
-    if (pathname === "/") return 0;
+    if (pathname === "/quizzes") return 0;
     if (pathname === "/you") return 1;
-    if (pathname === "/members") return 2;
+    if (pathname === "/leaderboard") return 2;
     return 0;
   };
 
@@ -37,8 +37,11 @@ export function BottomNav() {
         value={getValue()}
         sx={{
           bgcolor: "background.paper",
+          justifyContent: "space-between",
+          px: 3,
           "& .MuiBottomNavigationAction-root": {
             minWidth: "auto",
+            flex: "0 0 auto",
             color: "text.secondary",
             "&.Mui-selected": {
               color: "primary.main",
@@ -48,7 +51,7 @@ export function BottomNav() {
       >
         <BottomNavigationAction
           component={Link}
-          href="/"
+          href="/quizzes"
           label="Quizzes"
           icon={<QuizRoundedIcon />}
         />
@@ -60,8 +63,8 @@ export function BottomNav() {
         />
         <BottomNavigationAction
           component={Link}
-          href="/members"
-          label="Members"
+          href="/leaderboard"
+          label="Leaderboard"
           icon={<PeopleRoundedIcon />}
         />
       </BottomNavigation>

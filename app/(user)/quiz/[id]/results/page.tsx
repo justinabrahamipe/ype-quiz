@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
-import { DisputeButton } from "./dispute-button";
+import { MessageUsLink } from "@/components/message-us-link";
 
 export default async function ResultsPage({
   params,
@@ -27,24 +27,19 @@ export default async function ResultsPage({
     where: { quizId_userId: { quizId, userId: session.user.id } },
     include: {
       answers: {
-        include: {
-          question: true,
-          dispute: true,
-        },
+        include: { question: true },
         orderBy: { question: { orderIndex: "asc" } },
       },
     },
   });
 
-  if (!attempt) redirect("/");
+  if (!attempt || attempt.archivedAt) redirect("/");
 
   const score = Number(attempt.rawScore ?? 0);
-  const bonus = Number(attempt.bonusPoints ?? 0);
-  const total = score + bonus;
 
   // Get rank
   const allAttempts = await prisma.attempt.findMany({
-    where: { quizId, isComplete: true },
+    where: { quizId, isComplete: true, archivedAt: null },
     orderBy: { rawScore: "desc" },
   });
 
@@ -62,11 +57,6 @@ export default async function ResultsPage({
           <div className="text-5xl font-bold text-blue-600 dark:text-blue-400">
             {score} / {quiz.questionCount}
           </div>
-          {bonus > 0 && (
-            <span className="inline-block px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-sm font-medium">
-              +{bonus} bonus
-            </span>
-          )}
           <p className="text-slate-500 dark:text-slate-400 text-sm">
             Rank #{rank} of {allAttempts.length}
           </p>
@@ -102,13 +92,14 @@ export default async function ResultsPage({
                 Correct: {ans.question.acceptedAnswers.join(", ")}
               </p>
 
-              {!ans.dispute && (
-                <DisputeButton answerId={ans.id} />
-              )}
-              {ans.dispute && (
-                <p className="text-xs mt-2 text-slate-500 dark:text-slate-400">
-                  Dispute {ans.dispute.status}
-                </p>
+              {!ans.isCorrect && (
+                <div className="mt-2">
+                  <MessageUsLink
+                    label="Think this answer should be accepted? Message us"
+                    subject={`Answer review — ${quiz.title}`}
+                    body={`Question: ${ans.question.questionText}\nMy answer: ${ans.submittedText || "(empty)"}\n\nWhy I think it should be accepted:\n`}
+                  />
+                </div>
               )}
             </div>
           ))}

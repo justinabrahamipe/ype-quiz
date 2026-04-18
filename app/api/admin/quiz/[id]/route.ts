@@ -119,16 +119,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
-  // Delete in order: disputes -> answers -> attempts -> questions -> quiz
+  // Delete in order: answers -> attempts -> questions -> quiz
   const attempts = await prisma.attempt.findMany({ where: { quizId }, select: { id: true } });
   const attemptIds = attempts.map((a) => a.id);
 
   if (attemptIds.length > 0) {
-    const answers = await prisma.answer.findMany({ where: { attemptId: { in: attemptIds } }, select: { id: true } });
-    const answerIds = answers.map((a) => a.id);
-    if (answerIds.length > 0) {
-      await prisma.dispute.deleteMany({ where: { answerId: { in: answerIds } } });
-    }
     await prisma.answer.deleteMany({ where: { attemptId: { in: attemptIds } } });
   }
   await prisma.attempt.deleteMany({ where: { quizId } });

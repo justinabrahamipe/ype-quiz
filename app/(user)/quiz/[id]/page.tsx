@@ -316,7 +316,7 @@ export default function QuizAttemptPage() {
               ? "Submitting..."
               : isLast
               ? "Submit Quiz"
-              : "Skip"}
+              : "Next"}
           </button>
         </div>
       </div>

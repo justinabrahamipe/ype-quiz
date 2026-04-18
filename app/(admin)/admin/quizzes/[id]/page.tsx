@@ -25,7 +25,7 @@ export default async function EditQuizPage({
     include: {
       questions: { orderBy: { orderIndex: "asc" } },
       attempts: {
-        where: { isComplete: true },
+        where: { isComplete: true, archivedAt: null },
         include: {
           user: { select: { id: true, name: true, email: true, image: true } },
           answers: { select: { id: true, submittedText: true, isCorrect: true, questionId: true } },
@@ -39,7 +39,6 @@ export default async function EditQuizPage({
 
   const now = new Date();
   const isEditable = now < quiz.startTime;
-  const isEnded = now > quiz.endTime;
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,19 +59,23 @@ export default async function EditQuizPage({
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Start</p>
-            <p className="text-sm font-medium mt-1">
-              {quiz.startTime.toLocaleString()}
-            </p>
-          </div>
-          <div className="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <p className="text-xs text-slate-500 dark:text-slate-400">End</p>
-            <p className="text-sm font-medium mt-1">
-              {quiz.endTime.toLocaleString()}
-            </p>
-          </div>
+        <div className={`grid ${quiz.isPrerequisite ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"} gap-3`}>
+          {!quiz.isPrerequisite && (
+            <>
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Start</p>
+                <p className="text-sm font-medium mt-1">
+                  {quiz.startTime.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <p className="text-xs text-slate-500 dark:text-slate-400">End</p>
+                <p className="text-sm font-medium mt-1">
+                  {quiz.endTime.toLocaleString()}
+                </p>
+              </div>
+            </>
+          )}
           <div className="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <p className="text-xs text-slate-500 dark:text-slate-400">Questions</p>
             <p className="text-sm font-medium mt-1">{quiz.questionCount}</p>
@@ -83,11 +86,13 @@ export default async function EditQuizPage({
           </div>
         </div>
 
-        <EditTimes
-          quizId={quizId}
-          startTime={quiz.startTime.toISOString()}
-          endTime={quiz.endTime.toISOString()}
-        />
+        {!quiz.isPrerequisite && (
+          <EditTimes
+            quizId={quizId}
+            startTime={quiz.startTime.toISOString()}
+            endTime={quiz.endTime.toISOString()}
+          />
+        )}
 
         {/* Questions - inline editable */}
         <QuizQuestions
@@ -104,6 +109,7 @@ export default async function EditQuizPage({
         {/* Submissions - expandable with answer editing */}
         <QuizSubmissions
           quizId={quizId}
+          canDelete={session.user.role === "admin"}
           submissions={quiz.attempts.map((a) => ({
             attemptId: a.id,
             userId: a.user.id,
@@ -112,7 +118,6 @@ export default async function EditQuizPage({
             userImage: a.user.image,
             completedAt: a.completedAt?.toISOString() || "",
             rawScore: Number(a.rawScore ?? 0),
-            bonusPoints: Number(a.bonusPoints ?? 0),
             answers: a.answers.map((ans) => ({
               id: ans.id,
               submittedText: ans.submittedText,
@@ -127,15 +132,6 @@ export default async function EditQuizPage({
             orderIndex: q.orderIndex,
           }))}
         />
-
-        {isEnded && (
-          <Link
-            href={`/admin/quizzes/${quizId}/disputes`}
-            className="block w-full text-center py-3 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50"
-          >
-            View Disputes
-          </Link>
-        )}
 
         {session.user.email === SUPER_ADMIN_EMAIL && (
           <DeleteQuiz quizId={quizId} quizTitle={quiz.title} />

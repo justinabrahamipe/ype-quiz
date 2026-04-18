@@ -20,7 +20,12 @@ export async function GET(req: NextRequest) {
     }
 
     const attempts = await prisma.attempt.findMany({
-      where: { quizId, isComplete: true },
+      where: {
+        quizId,
+        isComplete: true,
+        archivedAt: null,
+        user: { isApproved: true, role: "user" },
+      },
       include: { user: { select: { id: true, name: true, image: true } } },
       orderBy: { rawScore: "desc" },
     });
@@ -30,7 +35,7 @@ export async function GET(req: NextRequest) {
       user_id: a.user.id,
       name: a.user.name,
       image: a.user.image,
-      score: Number(a.rawScore ?? 0) + Number(a.bonusPoints ?? 0),
+      score: Number(a.rawScore ?? 0),
     }));
 
     return NextResponse.json(leaderboard);
@@ -38,6 +43,7 @@ export async function GET(req: NextRequest) {
 
   // Overall leaderboard
   const scores = await prisma.overallScore.findMany({
+    where: { user: { isApproved: true, role: "user" } },
     include: { user: { select: { id: true, name: true, image: true } } },
     orderBy: { totalScore: "desc" },
   });

@@ -27,7 +27,10 @@ import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { OpenSignupToggle } from "@/components/open-signup-toggle";
 
 const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || "mahanaimype@gmail.com";
 
@@ -38,11 +41,13 @@ type UserItem = {
   image: string | null;
   role: string;
   isQualified: boolean;
+  isApproved: boolean;
   createdAt: string;
   overallScore: { totalScore: string } | null;
 };
 
 export default function ManageUsersPage() {
+  const { data: session } = useSession();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -63,6 +68,9 @@ export default function ManageUsersPage() {
   // Role change
   const [roleUser, setRoleUser] = useState<UserItem | null>(null);
 
+  // App settings
+  const [openSignup, setOpenSignup] = useState<boolean | null>(null);
+
   const fetchUsers = () => {
     setLoading(true);
     fetch("/api/admin/users")
@@ -74,7 +82,13 @@ export default function ManageUsersPage() {
       .catch(() => setLoading(false));
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    fetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then((data) => setOpenSignup(!!data?.openSignup))
+      .catch(() => setOpenSignup(false));
+  }, []);
 
   const doAction = async (userId: string, action: string, extra: Record<string, unknown> = {}) => {
     try {
@@ -150,13 +164,94 @@ export default function ManageUsersPage() {
       u.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const pendingUsers = filtered.filter((u) => !u.isApproved);
+  const approvedUsers = filtered.filter((u) => u.isApproved);
+
+  const renderRow = (user: UserItem, i: number, arr: UserItem[]) => {
+    const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
+    const score = user.overallScore ? Number(user.overallScore.totalScore) : 0;
+    return (
+      <Box key={user.id}>
+        {i > 0 && <Divider />}
+        <Box sx={{ px: 2.5, py: 1.5, display: "flex", alignItems: "center", gap: 1.5, "&:hover": { bgcolor: "action.hover" } }}>
+          <Avatar
+            src={user.image || undefined}
+            sx={{
+              width: 36, height: 36,
+              bgcolor: !user.image ? "primary.main" : undefined,
+              fontSize: "0.85rem",
+            }}
+          >
+            {!user.image && (user.name || "?")[0].toUpperCase()}
+          </Avatar>
+
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {user.name || "—"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {user.email}
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 0.5, alignItems: "center" }}>
+            <Chip
+              label={isSuperAdmin ? "Super Admin" : user.role}
+              size="small"
+              color={isSuperAdmin ? "secondary" : user.role === "admin" ? "primary" : user.role === "quizmaster" ? "info" : "default"}
+              sx={{ height: 22, fontSize: "0.65rem" }}
+            />
+            {!isSuperAdmin && user.isApproved && (
+              <>
+                <Chip
+                  label={user.isQualified ? "Qualified" : "Not Qualified"}
+                  size="small"
+                  color={user.isQualified ? "success" : "warning"}
+                  variant="outlined"
+                  sx={{ height: 22, fontSize: "0.65rem" }}
+                />
+                <Chip label={`${score} pts`} size="small" variant="outlined" sx={{ height: 22, fontSize: "0.65rem" }} />
+              </>
+            )}
+          </Box>
+
+          {!user.isApproved && (
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              onClick={() => doAction(user.id, "approve")}
+            >
+              Approve
+            </Button>
+          )}
+
+          <IconButton size="small" onClick={(e) => openMenu(e, user)}>
+            <MoreVertRoundedIcon sx={{ fontSize: 20 }} />
+          </IconButton>
+        </Box>
+      </Box>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <Box sx={{ maxWidth: 900, mx: "auto", px: { xs: 1.5, sm: 3 }, py: 3 }}>
-        <Typography variant="h5" fontWeight={700} className="gradient-text" sx={{ mb: 2 }}>
-          Manage Users
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+          <IconButton component={Link} href="/admin" size="small">
+            <ArrowBackRoundedIcon />
+          </IconButton>
+          <Typography variant="h5" fontWeight={700} className="gradient-text">
+            Manage Users
+          </Typography>
+        </Box>
+
+        {openSignup !== null && (
+          <Box sx={{ mb: 2 }}>
+            <OpenSignupToggle initialOpen={openSignup} />
+          </Box>
+        )}
 
         <TextField
           fullWidth
@@ -167,69 +262,38 @@ export default function ManageUsersPage() {
           sx={{ mb: 2 }}
         />
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          {filtered.length} users
-        </Typography>
-
-        <Card elevation={0}>
-          {loading ? (
+        {loading && (
+          <Card elevation={0}>
             <Box sx={{ p: 4, textAlign: "center" }}>
               <Typography color="text.secondary">Loading...</Typography>
             </Box>
-          ) : (
-            filtered.map((user, i) => {
-              const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
-              const score = user.overallScore ? Number(user.overallScore.totalScore) : 0;
-              return (
-                <Box key={user.id}>
-                  {i > 0 && <Divider />}
-                  <Box sx={{ px: 2.5, py: 1.5, display: "flex", alignItems: "center", gap: 1.5, "&:hover": { bgcolor: "action.hover" } }}>
-                    <Avatar
-                      src={user.image || undefined}
-                      sx={{
-                        width: 36, height: 36,
-                        bgcolor: !user.image ? "primary.main" : undefined,
-                        fontSize: "0.85rem",
-                      }}
-                    >
-                      {!user.image && (user.name || "?")[0].toUpperCase()}
-                    </Avatar>
+          </Card>
+        )}
 
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="body2" fontWeight={600} noWrap>
-                        {user.name || "—"}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {user.email}
-                      </Typography>
-                    </Box>
+        {!loading && pendingUsers.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+              <Typography variant="overline" sx={{ color: "warning.main" }}>
+                Pending approval
+              </Typography>
+              <Chip size="small" color="warning" label={pendingUsers.length} sx={{ height: 18, fontSize: "0.65rem" }} />
+            </Box>
+            <Card elevation={0} sx={{ borderColor: "warning.main" }}>
+              {pendingUsers.map((user, i) => renderRow(user, i, pendingUsers))}
+            </Card>
+          </Box>
+        )}
 
-                    <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 0.5, alignItems: "center" }}>
-                      <Chip
-                        label={isSuperAdmin ? "Super Admin" : user.role}
-                        size="small"
-                        color={isSuperAdmin ? "secondary" : user.role === "admin" ? "primary" : user.role === "quizmaster" ? "info" : "default"}
-                        sx={{ height: 22, fontSize: "0.65rem" }}
-                      />
-                      <Chip
-                        label={user.isQualified ? "Qualified" : "Not Qualified"}
-                        size="small"
-                        color={user.isQualified ? "success" : "warning"}
-                        variant="outlined"
-                        sx={{ height: 22, fontSize: "0.65rem" }}
-                      />
-                      <Chip label={`${score} pts`} size="small" variant="outlined" sx={{ height: 22, fontSize: "0.65rem" }} />
-                    </Box>
-
-                    <IconButton size="small" onClick={(e) => openMenu(e, user)}>
-                      <MoreVertRoundedIcon sx={{ fontSize: 20 }} />
-                    </IconButton>
-                  </Box>
-                </Box>
-              );
-            })
-          )}
-        </Card>
+        {!loading && (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              {approvedUsers.length} approved
+            </Typography>
+            <Card elevation={0}>
+              {approvedUsers.map((user, i) => renderRow(user, i, approvedUsers))}
+            </Card>
+          </>
+        )}
       </Box>
 
       {/* 3-dot Menu */}
@@ -248,13 +312,15 @@ export default function ManageUsersPage() {
           <ListItemIcon><VisibilityRoundedIcon fontSize="small" /></ListItemIcon>
           <ListItemText>View Results</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => {
-          if (menuUser) { setRoleUser(menuUser); }
-          closeMenu();
-        }}>
-          <ListItemIcon><AdminPanelSettingsRoundedIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Change Role</ListItemText>
-        </MenuItem>
+        {menuUser?.email !== SUPER_ADMIN_EMAIL && menuUser?.email !== session?.user?.email && (
+          <MenuItem onClick={() => {
+            if (menuUser) { setRoleUser(menuUser); }
+            closeMenu();
+          }}>
+            <ListItemIcon><AdminPanelSettingsRoundedIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Change Role</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem onClick={() => {
           if (menuUser) doAction(menuUser.id, "toggle_qualified");
           closeMenu();
@@ -262,6 +328,15 @@ export default function ManageUsersPage() {
           <ListItemIcon><VerifiedRoundedIcon fontSize="small" /></ListItemIcon>
           <ListItemText>{menuUser?.isQualified ? "Remove Qualification" : "Qualify User"}</ListItemText>
         </MenuItem>
+        {menuUser?.email !== SUPER_ADMIN_EMAIL && menuUser?.isApproved && (
+          <MenuItem onClick={() => {
+            if (menuUser) doAction(menuUser.id, "revoke_approval");
+            closeMenu();
+          }}>
+            <ListItemIcon><VerifiedRoundedIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Revoke Approval</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem onClick={() => {
           if (menuUser) {
             setEditScoreUser(menuUser);
@@ -338,7 +413,7 @@ export default function ManageUsersPage() {
         <DialogTitle sx={{ color: "error.main" }}>Delete User</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            This will permanently delete <strong>{deleteUser?.name || deleteUser?.email}</strong> and all their quiz attempts, answers, and disputes. This cannot be undone.
+            This will permanently delete <strong>{deleteUser?.name || deleteUser?.email}</strong> and all their quiz attempts and answers. This cannot be undone.
           </Typography>
           <Typography variant="body2" sx={{ mb: 1.5 }}>
             Type <strong>DELETE</strong> to confirm:

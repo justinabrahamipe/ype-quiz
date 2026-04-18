@@ -31,8 +31,10 @@ export default async function ReviewPage({
     include: { answers: true },
   });
 
+  const activeAttempt = attempt?.archivedAt ? null : attempt;
+
   const answerMap = new Map(
-    attempt?.answers.map((a) => [a.questionId, a]) ?? []
+    activeAttempt?.answers.map((a) => [a.questionId, a]) ?? []
   );
 
   return (

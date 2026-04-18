@@ -1,6 +1,53 @@
 import { prisma } from "./db";
 import { isCorrect } from "./answer-matcher";
 
+/**
+ * Backfill rawScore for any of a user's completed attempts that still have
+ * null rawScore (e.g. legacy attempts submitted before scoring-on-complete).
+ */
+export async function backfillAttemptScores(userId: string) {
+  const attempts = await prisma.attempt.findMany({
+    where: { userId, isComplete: true, archivedAt: null, rawScore: null },
+    include: {
+      answers: true,
+      quiz: { include: { questions: true } },
+    },
+  });
+
+  for (const attempt of attempts) {
+    let correct = 0;
+    for (const question of attempt.quiz.questions) {
+      const userAnswers = attempt.answers.filter((a) => a.questionId === question.id);
+      const userAnswer = userAnswers[userAnswers.length - 1];
+      if (userAnswer?.submittedText) {
+        const ok = isCorrect(
+          userAnswer.submittedText,
+          question.acceptedAnswers,
+          question.answerType as "text" | "number"
+        );
+        if (ok) correct++;
+        for (const ans of userAnswers) {
+          await prisma.answer.update({
+            where: { id: ans.id },
+            data: { isCorrect: ans.id === userAnswer.id ? ok : false },
+          });
+        }
+      } else {
+        for (const ans of userAnswers) {
+          await prisma.answer.update({
+            where: { id: ans.id },
+            data: { isCorrect: false },
+          });
+        }
+      }
+    }
+    await prisma.attempt.update({
+      where: { id: attempt.id },
+      data: { rawScore: correct },
+    });
+  }
+}
+
 export async function processQuizResults(quizId: string) {
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
   if (!quiz) return;
@@ -10,7 +57,7 @@ export async function processQuizResults(quizId: string) {
   });
 
   const allAttempts = await prisma.attempt.findMany({
-    where: { quizId, isComplete: true },
+    where: { quizId, isComplete: true, archivedAt: null },
     include: { answers: true },
   });
 
@@ -47,28 +94,10 @@ export async function processQuizResults(quizId: string) {
     });
   }
 
-  // Bonus points: first 3 completions with 50%+ score
   const sortedAttempts = await prisma.attempt.findMany({
-    where: { quizId, isComplete: true },
+    where: { quizId, isComplete: true, archivedAt: null },
     orderBy: { completedAt: "asc" },
   });
-
-  let bonusCount = 0;
-  for (const attempt of sortedAttempts) {
-    const score = attempt.rawScore ? Number(attempt.rawScore) : 0;
-    if (score / quiz.questionCount >= 0.5 && bonusCount < 3) {
-      await prisma.attempt.update({
-        where: { id: attempt.id },
-        data: { bonusPoints: 0.5 },
-      });
-      bonusCount++;
-    } else {
-      await prisma.attempt.update({
-        where: { id: attempt.id },
-        data: { bonusPoints: 0 },
-      });
-    }
-  }
 
   // Update overall scores for participants
   for (const attempt of sortedAttempts) {
@@ -114,11 +143,9 @@ export async function processPenalties(quizId: string) {
         },
       });
     } else {
-      const newScore = Math.max(0, Number(existing.totalScore) - 0.5);
       await prisma.overallScore.update({
         where: { userId: user.id },
         data: {
-          totalScore: newScore,
           quizzesMissed: { increment: 1 },
           lastUpdated: new Date(),
         },
@@ -137,7 +164,7 @@ export async function updateOverallScore(userId: string) {
     where: {
       userId,
       isComplete: true,
-      quiz: { resultsProcessed: true },
+      archivedAt: null,
     },
   });
 
@@ -145,7 +172,7 @@ export async function updateOverallScore(userId: string) {
   let quizzesAttempted = 0;
 
   for (const attempt of userAttempts) {
-    totalScore += Number(attempt.rawScore ?? 0) + Number(attempt.bonusPoints ?? 0);
+    totalScore += Number(attempt.rawScore ?? 0);
     quizzesAttempted++;
   }
 
@@ -154,8 +181,6 @@ export async function updateOverallScore(userId: string) {
   });
 
   const missedCount = existing?.quizzesMissed ?? 0;
-  totalScore -= missedCount * 0.5;
-  totalScore = Math.max(0, totalScore);
 
   await prisma.overallScore.upsert({
     where: { userId },
