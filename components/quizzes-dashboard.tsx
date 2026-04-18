@@ -32,9 +32,8 @@ type Props = {
   isApproved?: boolean;
   isQualified: boolean;
   userName: string;
-  userRank: number;
-  userTiedCount?: number;
-  userScore: number;
+  quizzesAttempted: number;
+  quizzesMissed: number;
   prerequisiteQuiz: QuizCard | null;
   prereqAttempted?: boolean;
   activeQuizzes: (QuizCard & { endTime: string; participants: number; attempted?: boolean })[];
@@ -49,7 +48,8 @@ type Props = {
 
 export function QuizzesDashboard(props: Props) {
   const {
-    isApproved = true, isQualified, userName, userRank, userTiedCount = 0, userScore,
+    isApproved = true, isQualified, userName,
+    quizzesAttempted, quizzesMissed,
     prerequisiteQuiz, prereqAttempted, activeQuizzes, upcomingQuizzes, pastQuizzes,
   } = props;
 
@@ -86,22 +86,17 @@ export function QuizzesDashboard(props: Props) {
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
           <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
             <CardContent>
-              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Your Rank</Typography>
-              <Typography variant="h4" sx={{ color: "primary.main", mt: 0.5 }}>
-                {userRank > 0 ? `#${userRank}` : "—"}
+              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Attempted</Typography>
+              <Typography variant="h4" sx={{ color: "success.main", mt: 0.5 }}>
+                {quizzesAttempted}
               </Typography>
-              {userTiedCount > 0 && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
-                  Tied with {userTiedCount} {userTiedCount === 1 ? "other" : "others"}
-                </Typography>
-              )}
             </CardContent>
           </Card>
           <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
             <CardContent>
-              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Total Score</Typography>
-              <Typography variant="h4" sx={{ color: "primary.main", mt: 0.5 }}>
-                {userScore}
+              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Missed</Typography>
+              <Typography variant="h4" sx={{ color: quizzesMissed > 0 ? "error.main" : "text.secondary", mt: 0.5 }}>
+                {quizzesMissed}
               </Typography>
             </CardContent>
           </Card>
