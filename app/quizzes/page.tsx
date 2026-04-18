@@ -49,6 +49,12 @@ export default async function QuizzesPage() {
   const attemptMap = Object.fromEntries(
     userAttempts.map((a) => [a.quizId, a.isComplete])
   );
+  const scoreMap = Object.fromEntries(
+    userAttempts.map((a) => [
+      a.quizId,
+      a.isComplete ? Number(a.rawScore ?? 0) : null,
+    ])
+  );
 
   const prerequisiteQuiz = quizzes.find((q) => q.isPrerequisite);
   const regularQuizzes = quizzes.filter((q) => !q.isPrerequisite);
@@ -57,6 +63,7 @@ export default async function QuizzesPage() {
     (q) => now >= q.startTime && now <= q.endTime
   );
   const upcomingQuizzes = regularQuizzes.filter((q) => now < q.startTime);
+  const pastQuizzes = regularQuizzes.filter((q) => now > q.endTime);
 
   const userTotalScore = userAttempts
     .filter((a) => a.isComplete && !a.quiz?.isPrerequisite)
@@ -118,6 +125,16 @@ export default async function QuizzesPage() {
           biblePortion: q.biblePortion,
           questionCount: q.questionCount,
           startTime: q.startTime.toISOString(),
+        }))}
+        pastQuizzes={pastQuizzes.map((q) => ({
+          id: q.id,
+          title: q.title,
+          biblePortion: q.biblePortion,
+          questionCount: q.questionCount,
+          endTime: q.endTime.toISOString(),
+          participants: q._count.attempts,
+          attempted: attemptMap[q.id],
+          userScore: scoreMap[q.id] ?? null,
         }))}
       />
       <BottomNav />

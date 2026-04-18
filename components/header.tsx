@@ -107,12 +107,18 @@ export function Header() {
         {/* Spacer for mobile */}
         <Box sx={{ flexGrow: 1, display: { xs: "block", md: "none" } }} />
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
           <InstallButton />
           <IconButton
             onClick={toggleTheme}
             size="small"
-            sx={{ color: "primary.main" }}
+            aria-label="Toggle theme"
+            sx={{
+              color: "primary.main",
+              width: 36,
+              height: 36,
+              borderRadius: 2,
+            }}
           >
             {theme === "dark" ? (
               <LightModeRoundedIcon fontSize="small" />
@@ -121,30 +127,61 @@ export function Header() {
             )}
           </IconButton>
 
-          {(session?.user?.role === "admin" || session?.user?.role === "quizmaster") && (
-            <Chip
-              component={Link}
-              href="/admin"
-              label={session?.user?.role === "quizmaster" ? "Quizmaster" : "Admin"}
-              size="small"
-              color="primary"
-              variant="outlined"
-              clickable
-              sx={{ fontSize: "0.7rem", height: 26 }}
-            />
-          )}
-
           {session?.user && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 0.5 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                ml: 1,
+                pl: 1,
+                borderLeft: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              {(session.user.role === "admin" ||
+                session.user.role === "quizmaster") && (
+                <Chip
+                  component={Link}
+                  href="/admin"
+                  label={
+                    session.user.role === "quizmaster" ? "Quizmaster" : "Admin"
+                  }
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  clickable
+                  sx={{
+                    fontSize: "0.7rem",
+                    height: 24,
+                    fontWeight: 600,
+                  }}
+                />
+              )}
               <Avatar
                 src={session.user.image || undefined}
                 alt={session.user.name || ""}
-                sx={{ width: 30, height: 30, border: "2px solid", borderColor: "divider" }}
-              />
+                sx={{
+                  width: 32,
+                  height: 32,
+                  fontSize: "0.85rem",
+                  border: "2px solid",
+                  borderColor: "divider",
+                }}
+              >
+                {!session.user.image &&
+                  (session.user.name || "?")[0].toUpperCase()}
+              </Avatar>
               <IconButton
                 onClick={() => signOut()}
                 size="small"
-                sx={{ color: "text.secondary" }}
+                aria-label="Sign out"
+                sx={{
+                  color: "text.secondary",
+                  width: 36,
+                  height: 36,
+                  borderRadius: 2,
+                }}
               >
                 <LogoutRoundedIcon fontSize="small" />
               </IconButton>
@@ -157,7 +194,7 @@ export function Header() {
               href="/login"
               variant="contained"
               size="small"
-              sx={{ fontSize: "0.75rem" }}
+              sx={{ fontSize: "0.75rem", ml: 1 }}
             >
               Sign in
             </Button>

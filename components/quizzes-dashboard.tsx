@@ -15,6 +15,8 @@ import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
 import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import { Countdown } from "@/components/countdown";
 import { EditName } from "@/components/edit-name";
 import { ShareButton } from "@/components/share-button";
@@ -37,12 +39,18 @@ type Props = {
   prereqAttempted?: boolean;
   activeQuizzes: (QuizCard & { endTime: string; participants: number; attempted?: boolean })[];
   upcomingQuizzes: (QuizCard & { startTime: string })[];
+  pastQuizzes: (QuizCard & {
+    endTime: string;
+    participants: number;
+    attempted?: boolean;
+    userScore: number | null;
+  })[];
 };
 
 export function QuizzesDashboard(props: Props) {
   const {
     isApproved = true, isQualified, userName, userRank, userTiedCount = 0, userScore,
-    prerequisiteQuiz, prereqAttempted, activeQuizzes, upcomingQuizzes,
+    prerequisiteQuiz, prereqAttempted, activeQuizzes, upcomingQuizzes, pastQuizzes,
   } = props;
 
   return (
@@ -248,16 +256,148 @@ export function QuizzesDashboard(props: Props) {
         </Box>
       )}
 
-      {/* Empty state */}
-      {activeQuizzes.length === 0 && upcomingQuizzes.length === 0 && !prerequisiteQuiz && (
-        <Box sx={{ textAlign: "center", py: 8 }}>
-          <Avatar sx={{ mx: "auto", mb: 2, width: 64, height: 64, bgcolor: "action.hover" }}>
-            <AutoStoriesRoundedIcon sx={{ color: "primary.main", fontSize: 32 }} />
-          </Avatar>
-          <Typography variant="h6">No quizzes yet</Typography>
-          <Typography variant="body2" color="text.secondary">Check back soon!</Typography>
+      {/* Past */}
+      {pastQuizzes.length > 0 && (
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+            <HistoryRoundedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+            <Typography variant="overline" color="text.secondary">Past</Typography>
+          </Box>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            {pastQuizzes.map((quiz) => (
+              <Card
+                key={quiz.id}
+                elevation={0}
+                sx={{
+                  position: "relative",
+                  cursor: "default",
+                  opacity: 0.85,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 2,
+                      pr: 4,
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        {quiz.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {quiz.biblePortion}
+                      </Typography>
+                    </Box>
+                    {quiz.attempted ? (
+                      <Chip
+                        size="small"
+                        icon={<CheckCircleRoundedIcon />}
+                        label={
+                          quiz.userScore != null
+                            ? `${quiz.userScore} pts`
+                            : "Completed"
+                        }
+                        color="success"
+                        variant="outlined"
+                      />
+                    ) : (
+                      <Chip
+                        size="small"
+                        label="Missed"
+                        color="default"
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 2,
+                      mt: 1.5,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                    >
+                      <QuizRoundedIcon sx={{ fontSize: 14 }} />{" "}
+                      {quiz.questionCount} questions
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                    >
+                      <PeopleRoundedIcon sx={{ fontSize: 14 }} />{" "}
+                      {quiz.participants}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                    >
+                      <CalendarTodayRoundedIcon sx={{ fontSize: 14 }} /> Closed{" "}
+                      {new Date(quiz.endTime).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </Typography>
+                  </Box>
+                </CardContent>
+                <Box
+                  sx={{ position: "absolute", top: 6, right: 6, zIndex: 1 }}
+                >
+                  <ShareButton
+                    variant="icon"
+                    title={`${quiz.title} · YPE Bible Quiz`}
+                    text={`${quiz.title} — ${quiz.biblePortion} · YPE Bible Quiz.`}
+                    url={`${
+                      typeof window !== "undefined"
+                        ? window.location.origin
+                        : ""
+                    }/q/${quiz.id}`}
+                    label="Share quiz"
+                  />
+                </Box>
+              </Card>
+            ))}
+          </Box>
         </Box>
       )}
+
+      {/* Empty state */}
+      {activeQuizzes.length === 0 &&
+        upcomingQuizzes.length === 0 &&
+        pastQuizzes.length === 0 &&
+        !prerequisiteQuiz && (
+          <Box sx={{ textAlign: "center", py: 8 }}>
+            <Avatar
+              sx={{
+                mx: "auto",
+                mb: 2,
+                width: 64,
+                height: 64,
+                bgcolor: "action.hover",
+              }}
+            >
+              <AutoStoriesRoundedIcon
+                sx={{ color: "primary.main", fontSize: 32 }}
+              />
+            </Avatar>
+            <Typography variant="h6">No quizzes yet</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Check back soon!
+            </Typography>
+          </Box>
+        )}
     </Box>
   );
 }
