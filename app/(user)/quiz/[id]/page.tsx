@@ -35,6 +35,8 @@ export default function QuizAttemptPage() {
   const questionStartRef = useRef<string>(new Date().toISOString());
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const leavingRef = useRef(false);
+  const lockedRef = useRef<Set<string>>(new Set());
 
   // Start the quiz
   useEffect(() => {
@@ -103,8 +105,66 @@ export default function QuizAttemptPage() {
     } else {
       setAnswer("");
       setTimeLeft(120);
+      // Lock the question the moment it's shown: if the user leaves without
+      // answering, the question is marked attempted server-side so they can't
+      // see it (and its fresh 120s timer) again.
+      if (q && !lockedRef.current.has(q.id)) {
+        lockedRef.current.add(q.id);
+        fetch(`/api/quiz/${quizId}/answer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question_id: q.id,
+            submitted_text: "",
+            question_started_at: questionStartRef.current,
+          }),
+        })
+          .then(() => {
+            setExistingAnswers((prev) => {
+              if (prev.has(q.id)) return prev;
+              const next = new Map(prev);
+              next.set(q.id, "");
+              return next;
+            });
+          })
+          .catch(() => {
+            lockedRef.current.delete(q.id);
+          });
+      }
     }
-  }, [currentIndex, loading, questions, existingAnswers, timeSpent]);
+  }, [currentIndex, loading, questions, existingAnswers, timeSpent, quizId]);
+
+  // Warn before leaving — browser close/refresh
+  useEffect(() => {
+    if (loading) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      if (leavingRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [loading]);
+
+  // Warn before leaving — in-app back button (SPA)
+  useEffect(() => {
+    if (loading) return;
+    window.history.pushState(null, "", window.location.href);
+    const handler = () => {
+      if (leavingRef.current) return;
+      const ok = window.confirm(
+        "Leave quiz? You won't be able to answer this question again."
+      );
+      if (ok) {
+        leavingRef.current = true;
+        window.history.back();
+      } else {
+        window.history.pushState(null, "", window.location.href);
+      }
+    };
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, [loading]);
 
   // Timer countdown
   useEffect(() => {
@@ -191,6 +251,7 @@ export default function QuizAttemptPage() {
 
   const handleCompleteQuiz = async () => {
     setSubmitting(true);
+    leavingRef.current = true;
     try {
       const res = await fetch(`/api/quiz/${quizId}/complete`, { method: "POST" });
       const data = await res.json();
@@ -201,6 +262,7 @@ export default function QuizAttemptPage() {
       }
     } catch {
       toast("Failed to submit quiz", "error");
+      leavingRef.current = false;
       setSubmitting(false);
     }
   };
