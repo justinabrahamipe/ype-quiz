@@ -68,16 +68,23 @@ export default async function QuizzesPage() {
 
   const attemptedCount = userAttempts.filter((a) => a.isComplete).length;
 
-  const pastBucket = [
-    ...pastQuizzes,
-    ...(prereqIsPast && prerequisiteQuiz ? [prerequisiteQuiz] : []),
-  ];
-  const attemptedPastQuizzes = pastBucket.filter(
+  const attemptedPastQuizzes = pastQuizzes.filter(
     (q) => attemptMap[q.id] === true
   );
-  const skippedPastQuizzes = pastBucket.filter(
+  const skippedPastQuizzes = pastQuizzes.filter(
     (q) => attemptMap[q.id] !== true
   );
+
+  // Qualifying quiz: always appear in Attempted if completed (regardless of
+  // quiz timing); appear in Skipped only if its window has closed and the user
+  // never completed it.
+  if (prerequisiteQuiz) {
+    if (attemptMap[prerequisiteQuiz.id] === true) {
+      attemptedPastQuizzes.push(prerequisiteQuiz);
+    } else if (prereqIsPast) {
+      skippedPastQuizzes.push(prerequisiteQuiz);
+    }
+  }
   const skippedCount = skippedPastQuizzes.length;
 
   const currentCount = activeQuizzes.length + (prereqIsActive ? 1 : 0);

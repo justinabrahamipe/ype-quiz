@@ -30,17 +30,23 @@ const MEDAL = {
     deep: "#B8860B",
     light: "#FDE68A",
     gradient: "linear-gradient(180deg, #FDE68A 0%, #F5B301 55%, #B8860B 100%)",
+    badge: "linear-gradient(135deg, #FDE68A 0%, #F5B301 50%, #B8860B 100%)",
     bar: "linear-gradient(90deg, #B8860B, #F5B301, #FDE68A)",
     glow: "0 8px 24px rgba(245,179,1,0.35)",
+    rowBg: "linear-gradient(90deg, rgba(245,179,1,0.18) 0%, rgba(245,179,1,0.04) 100%)",
+    rowBorder: "#F5B301",
     text: "#92400E",
   },
   silver: {
-    main: "#C0C7D1",
+    main: "#A8B0BC",
     deep: "#6B7280",
     light: "#F1F5F9",
-    gradient: "linear-gradient(180deg, #F1F5F9 0%, #C0C7D1 55%, #6B7280 100%)",
-    bar: "linear-gradient(90deg, #6B7280, #C0C7D1, #F1F5F9)",
+    gradient: "linear-gradient(180deg, #F1F5F9 0%, #A8B0BC 55%, #6B7280 100%)",
+    badge: "linear-gradient(135deg, #F1F5F9 0%, #A8B0BC 50%, #6B7280 100%)",
+    bar: "linear-gradient(90deg, #6B7280, #A8B0BC, #F1F5F9)",
     glow: "0 8px 24px rgba(148,163,184,0.30)",
+    rowBg: "linear-gradient(90deg, rgba(148,163,184,0.18) 0%, rgba(148,163,184,0.04) 100%)",
+    rowBorder: "#A8B0BC",
     text: "#475569",
   },
   bronze: {
@@ -48,11 +54,18 @@ const MEDAL = {
     deep: "#7C3F12",
     light: "#E8A87C",
     gradient: "linear-gradient(180deg, #E8A87C 0%, #CD7F32 55%, #7C3F12 100%)",
+    badge: "linear-gradient(135deg, #E8A87C 0%, #CD7F32 50%, #7C3F12 100%)",
     bar: "linear-gradient(90deg, #7C3F12, #CD7F32, #E8A87C)",
     glow: "0 8px 24px rgba(205,127,50,0.30)",
+    rowBg: "linear-gradient(90deg, rgba(205,127,50,0.18) 0%, rgba(205,127,50,0.04) 100%)",
+    rowBorder: "#CD7F32",
     text: "#7C3F12",
   },
 };
+
+function medalFor(i: number) {
+  return i === 0 ? MEDAL.gold : i === 1 ? MEDAL.silver : i === 2 ? MEDAL.bronze : null;
+}
 
 export function MembersContent({ members, currentUserId }: { members: Member[]; currentUserId?: string }) {
   const maxScore = members.length > 0 ? members[0].score || 1 : 1;
@@ -213,45 +226,87 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
         {members.map((member, i) => {
           const isCurrentUser = currentUserId === member.id;
           const barWidth = maxScore > 0 ? (member.score / maxScore) * 100 : 0;
+          const medal = medalFor(i);
           return (
             <Box key={member.id}>
-              {i > 0 && <Divider />}
+              {i > 0 && !medal && <Divider />}
               <Tooltip title={member.email} placement="left" arrow>
                 <Box
                   sx={{
+                    position: "relative",
                     px: 2.5,
-                    py: 2,
-                    bgcolor: isCurrentUser ? "action.selected" : "transparent",
-                    "&:hover": { bgcolor: "action.hover" },
-                    transition: "background-color 0.2s",
+                    py: medal ? 2.25 : 2,
+                    background: medal
+                      ? medal.rowBg
+                      : isCurrentUser
+                      ? undefined
+                      : "transparent",
+                    bgcolor: !medal && isCurrentUser ? "action.selected" : undefined,
+                    borderLeft: medal ? `4px solid ${medal.rowBorder}` : "4px solid transparent",
+                    "&:hover": { filter: medal ? "brightness(1.03)" : undefined, bgcolor: !medal ? "action.hover" : undefined },
+                    transition: "background-color 0.2s, filter 0.2s",
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
-                    <Typography
-                      variant="body2"
-                      fontWeight={700}
-                      sx={{
-                        width: 28,
-                        textAlign: "center",
-                        color: i === 0 ? MEDAL.gold.main : i === 1 ? MEDAL.silver.deep : i === 2 ? MEDAL.bronze.main : "text.secondary",
-                      }}
-                    >
-                      {i + 1}
-                    </Typography>
+                    {medal ? (
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          background: medal.badge,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: `${medal.glow}, inset 0 1px 0 rgba(255,255,255,0.5)`,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 800,
+                            fontSize: "0.95rem",
+                            textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                            lineHeight: 1,
+                          }}
+                        >
+                          {i + 1}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Typography
+                        variant="body2"
+                        fontWeight={700}
+                        sx={{ width: 32, textAlign: "center", color: "text.secondary" }}
+                      >
+                        {i + 1}
+                      </Typography>
+                    )}
                     <Avatar
                       src={member.image || undefined}
                       sx={{
-                        width: 36,
-                        height: 36,
-                        fontSize: "0.85rem",
-                        bgcolor: !member.image ? "primary.main" : undefined,
+                        width: medal ? 42 : 36,
+                        height: medal ? 42 : 36,
+                        fontSize: "0.9rem",
+                        fontWeight: 700,
+                        bgcolor: !member.image ? (medal ? medal.deep : "primary.main") : undefined,
+                        border: medal ? `2px solid ${medal.main}` : undefined,
+                        boxShadow: medal ? medal.glow : undefined,
                       }}
                     >
                       {!member.image && member.name[0].toUpperCase()}
                     </Avatar>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                        <Typography variant="body2" fontWeight={600} noWrap>{member.name}</Typography>
+                        <Typography
+                          variant="body2"
+                          fontWeight={medal ? 700 : 600}
+                          noWrap
+                          sx={medal ? { color: medal.text } : undefined}
+                        >
+                          {member.name}
+                        </Typography>
                         {isCurrentUser && <Chip label="you" size="small" color="primary" sx={{ height: 18, fontSize: "0.6rem" }} />}
                       </Box>
                       <Box sx={{ display: "flex", gap: 1.5 }}>
@@ -261,20 +316,60 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
                         )}
                       </Box>
                     </Box>
-                    <Typography variant="body2" fontWeight={700} sx={{ fontVariantNumeric: "tabular-nums" }}>
-                      {member.score} pts
-                    </Typography>
+                    {medal ? (
+                      <Box
+                        sx={{
+                          px: 1.25,
+                          py: 0.5,
+                          borderRadius: 1.5,
+                          background: medal.badge,
+                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.4)",
+                          display: "flex",
+                          alignItems: "baseline",
+                          gap: 0.5,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: 800,
+                            fontSize: "0.95rem",
+                            fontVariantNumeric: "tabular-nums",
+                            textShadow: "0 1px 1px rgba(0,0,0,0.25)",
+                            lineHeight: 1,
+                          }}
+                        >
+                          {member.score}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            opacity: 0.85,
+                            fontSize: "0.65rem",
+                            fontWeight: 700,
+                            textShadow: "0 1px 1px rgba(0,0,0,0.25)",
+                            lineHeight: 1,
+                          }}
+                        >
+                          pts
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" fontWeight={700} sx={{ fontVariantNumeric: "tabular-nums" }}>
+                        {member.score} pts
+                      </Typography>
+                    )}
                   </Box>
-                  <Box sx={{ ml: "52px" }}>
+                  <Box sx={{ ml: "56px" }}>
                     <LinearProgress
                       variant="determinate"
                       value={barWidth}
                       sx={{
-                        height: 6,
+                        height: medal ? 7 : 6,
                         borderRadius: 3,
                         bgcolor: "action.hover",
                         "& .MuiLinearProgress-bar": {
-                          background: i === 0 ? MEDAL.gold.bar : i === 1 ? MEDAL.silver.bar : i === 2 ? MEDAL.bronze.bar : "linear-gradient(90deg, #0f766e, #14b8a6)",
+                          background: medal ? medal.bar : "linear-gradient(90deg, #0f766e, #14b8a6)",
                           borderRadius: 3,
                         },
                       }}
