@@ -45,6 +45,14 @@ export default function QuizAttemptPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const leavingRef = useRef(false);
   const lockedRef = useRef<Set<string>>(new Set());
+  const existingAnswersRef = useRef(existingAnswers);
+  const timeSpentRef = useRef(timeSpent);
+  useEffect(() => {
+    existingAnswersRef.current = existingAnswers;
+  }, [existingAnswers]);
+  useEffect(() => {
+    timeSpentRef.current = timeSpent;
+  }, [timeSpent]);
 
   // Start the quiz
   useEffect(() => {
@@ -99,16 +107,20 @@ export default function QuizAttemptPage() {
     return () => { cancelled = true; };
   }, [quizId, router]);
 
-  // Reset timer when question changes
+  // Initialize the question whenever the user navigates to a new one.
+  // Reads existingAnswers/timeSpent via ref so this effect does NOT re-run on
+  // every keystroke save — otherwise typing would reset the timer and answer.
   useEffect(() => {
     if (loading) return;
     questionStartRef.current = new Date().toISOString();
 
     const q = questions[currentIndex];
-    if (q && existingAnswers.has(q.id)) {
-      setAnswer(existingAnswers.get(q.id) || "");
-      // Already answered — calculate remaining time
-      const spent = timeSpent.get(q.id) || 0;
+    if (!q) return;
+
+    const prior = existingAnswersRef.current.get(q.id);
+    if (prior !== undefined) {
+      setAnswer(prior);
+      const spent = timeSpentRef.current.get(q.id) || 0;
       setTimeLeft(Math.max(0, 120 - spent));
     } else {
       setAnswer("");
@@ -116,7 +128,7 @@ export default function QuizAttemptPage() {
       // Lock the question the moment it's shown: if the user leaves without
       // answering, the question is marked attempted server-side so they can't
       // see it (and its fresh 120s timer) again.
-      if (q && !lockedRef.current.has(q.id)) {
+      if (!lockedRef.current.has(q.id)) {
         lockedRef.current.add(q.id);
         fetch(`/api/quiz/${quizId}/answer`, {
           method: "POST",
@@ -140,7 +152,7 @@ export default function QuizAttemptPage() {
           });
       }
     }
-  }, [currentIndex, loading, questions, existingAnswers, timeSpent, quizId]);
+  }, [currentIndex, loading, questions, quizId]);
 
   // Warn before leaving — browser close/refresh
   useEffect(() => {
