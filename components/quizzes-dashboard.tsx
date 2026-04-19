@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -8,6 +9,8 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Avatar from "@mui/material/Avatar";
+import Collapse from "@mui/material/Collapse";
+import IconButton from "@mui/material/IconButton";
 import AutoStoriesRoundedIcon from "@mui/icons-material/AutoStoriesRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
@@ -15,8 +18,9 @@ import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import QuizRoundedIcon from "@mui/icons-material/QuizRounded";
 import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
-import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
+import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import { Countdown } from "@/components/countdown";
 import { EditName } from "@/components/edit-name";
 import { ShareButton } from "@/components/share-button";
@@ -33,25 +37,32 @@ type Props = {
   isQualified: boolean;
   userName: string;
   quizzesAttempted: number;
-  quizzesMissed: number;
+  quizzesSkipped: number;
+  quizzesCurrent: number;
   prerequisiteQuiz: QuizCard | null;
   prereqAttempted?: boolean;
   activeQuizzes: (QuizCard & { endTime: string; participants: number; attempted?: boolean })[];
   upcomingQuizzes: (QuizCard & { startTime: string })[];
-  pastQuizzes: (QuizCard & {
+  attemptedQuizzes: (QuizCard & {
     endTime: string;
     participants: number;
-    attempted?: boolean;
     userScore: number | null;
+  })[];
+  skippedQuizzes: (QuizCard & {
+    endTime: string;
+    participants: number;
   })[];
 };
 
 export function QuizzesDashboard(props: Props) {
   const {
     isApproved = true, isQualified, userName,
-    quizzesAttempted, quizzesMissed,
-    prerequisiteQuiz, prereqAttempted, activeQuizzes, upcomingQuizzes, pastQuizzes,
+    quizzesAttempted, quizzesSkipped, quizzesCurrent,
+    prerequisiteQuiz, prereqAttempted, activeQuizzes, upcomingQuizzes,
+    attemptedQuizzes, skippedQuizzes,
   } = props;
+  const [attemptedOpen, setAttemptedOpen] = useState(true);
+  const [skippedOpen, setSkippedOpen] = useState(false);
 
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", px: { xs: 1.5, sm: 3 }, py: 3, pb: 12, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -83,7 +94,7 @@ export function QuizzesDashboard(props: Props) {
       {/* User Stats */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <EditName currentName={userName} />
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: { xs: 1, sm: 2 } }}>
           <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
             <CardContent>
               <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Attempted</Typography>
@@ -94,9 +105,17 @@ export function QuizzesDashboard(props: Props) {
           </Card>
           <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
             <CardContent>
-              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Missed</Typography>
-              <Typography variant="h4" sx={{ color: quizzesMissed > 0 ? "error.main" : "text.secondary", mt: 0.5 }}>
-                {quizzesMissed}
+              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Skipped</Typography>
+              <Typography variant="h4" sx={{ color: quizzesSkipped > 0 ? "error.main" : "text.secondary", mt: 0.5 }}>
+                {quizzesSkipped}
+              </Typography>
+            </CardContent>
+          </Card>
+          <Card elevation={0} sx={{ bgcolor: "background.paper" }}>
+            <CardContent>
+              <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.65rem" }}>Current</Typography>
+              <Typography variant="h4" sx={{ color: quizzesCurrent > 0 ? "primary.main" : "text.secondary", mt: 0.5 }}>
+                {quizzesCurrent}
               </Typography>
             </CardContent>
           </Card>
@@ -152,7 +171,7 @@ export function QuizzesDashboard(props: Props) {
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "success.main", animation: "pulse 2s infinite" }} />
-            <Typography variant="overline" color="text.secondary">Active Now</Typography>
+            <Typography variant="overline" color="text.secondary">Current</Typography>
           </Box>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             {activeQuizzes.map((quiz) => {
@@ -253,128 +272,99 @@ export function QuizzesDashboard(props: Props) {
         </Box>
       )}
 
-      {/* Past */}
-      {pastQuizzes.length > 0 && (
+      {/* Attempted (past completed) */}
+      {attemptedQuizzes.length > 0 && (
         <Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-            <HistoryRoundedIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-            <Typography variant="overline" color="text.secondary">Past</Typography>
-          </Box>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {pastQuizzes.map((quiz) => {
-              const card = (
-                <CardContent>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: 2,
-                    }}
+          <SectionToggle
+            icon={<CheckCircleRoundedIcon sx={{ fontSize: 18, color: "success.main" }} />}
+            label="Attempted"
+            count={attemptedQuizzes.length}
+            open={attemptedOpen}
+            onToggle={() => setAttemptedOpen((v) => !v)}
+          />
+          <Collapse in={attemptedOpen} timeout="auto" unmountOnExit>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1.5 }}>
+              {attemptedQuizzes.map((quiz) => (
+                <Card
+                  key={quiz.id}
+                  elevation={0}
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    transition: "border-color 0.2s",
+                    "&:hover": { borderColor: "primary.main" },
+                  }}
+                >
+                  <CardActionArea
+                    component={Link}
+                    href={`/quiz/${quiz.id}/review`}
+                    sx={{ display: "block" }}
                   >
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight={600}>
-                        {quiz.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {quiz.biblePortion}
-                      </Typography>
-                    </Box>
-                    {quiz.attempted ? (
-                      <Chip
-                        size="small"
-                        icon={<CheckCircleRoundedIcon />}
-                        label={
-                          quiz.userScore != null
-                            ? `${quiz.userScore} pts`
-                            : "Completed"
-                        }
-                        color="success"
-                        variant="outlined"
-                      />
-                    ) : (
+                    <PastQuizContent
+                      quiz={quiz}
+                      chip={
+                        <Chip
+                          size="small"
+                          icon={<CheckCircleRoundedIcon />}
+                          label={quiz.userScore != null ? `${quiz.userScore} pts` : "Completed"}
+                          color="success"
+                          variant="outlined"
+                        />
+                      }
+                    />
+                  </CardActionArea>
+                </Card>
+              ))}
+            </Box>
+          </Collapse>
+        </Box>
+      )}
+
+      {/* Skipped (past not attempted) */}
+      {skippedQuizzes.length > 0 && (
+        <Box>
+          <SectionToggle
+            icon={<CancelRoundedIcon sx={{ fontSize: 18, color: "error.main" }} />}
+            label="Skipped"
+            count={skippedQuizzes.length}
+            open={skippedOpen}
+            onToggle={() => setSkippedOpen((v) => !v)}
+          />
+          <Collapse in={skippedOpen} timeout="auto" unmountOnExit>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1.5 }}>
+              {skippedQuizzes.map((quiz) => (
+                <Card
+                  key={quiz.id}
+                  elevation={0}
+                  sx={{
+                    opacity: 0.75,
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <PastQuizContent
+                    quiz={quiz}
+                    chip={
                       <Chip
                         size="small"
                         label="Missed"
                         color="default"
                         variant="outlined"
                       />
-                    )}
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 2,
-                      mt: 1.5,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                    >
-                      <QuizRoundedIcon sx={{ fontSize: 14 }} />{" "}
-                      {quiz.questionCount} questions
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                    >
-                      <PeopleRoundedIcon sx={{ fontSize: 14 }} />{" "}
-                      {quiz.participants}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                    >
-                      <CalendarTodayRoundedIcon sx={{ fontSize: 14 }} /> Closed{" "}
-                      {new Date(quiz.endTime).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </Typography>
-                  </Box>
-                </CardContent>
-              );
-              return (
-                <Card
-                  key={quiz.id}
-                  elevation={0}
-                  sx={{
-                    opacity: quiz.attempted ? 1 : 0.75,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    transition: "border-color 0.2s",
-                    "&:hover": quiz.attempted
-                      ? { borderColor: "primary.main" }
-                      : undefined,
-                  }}
-                >
-                  {quiz.attempted ? (
-                    <CardActionArea
-                      component={Link}
-                      href={`/quiz/${quiz.id}/review`}
-                      sx={{ display: "block" }}
-                    >
-                      {card}
-                    </CardActionArea>
-                  ) : (
-                    card
-                  )}
+                    }
+                  />
                 </Card>
-              );
-            })}
-          </Box>
+              ))}
+            </Box>
+          </Collapse>
         </Box>
       )}
 
       {/* Empty state */}
       {activeQuizzes.length === 0 &&
         upcomingQuizzes.length === 0 &&
-        pastQuizzes.length === 0 &&
+        attemptedQuizzes.length === 0 &&
+        skippedQuizzes.length === 0 &&
         !prerequisiteQuiz && (
           <Box sx={{ textAlign: "center", py: 8 }}>
             <Avatar
@@ -397,5 +387,123 @@ export function QuizzesDashboard(props: Props) {
           </Box>
         )}
     </Box>
+  );
+}
+
+function SectionToggle({
+  icon,
+  label,
+  count,
+  open,
+  onToggle,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Box
+      onClick={onToggle}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        cursor: "pointer",
+        userSelect: "none",
+        py: 0.5,
+        px: 1,
+        mx: -1,
+        borderRadius: 1,
+        "&:hover": { bgcolor: "action.hover" },
+      }}
+    >
+      {icon}
+      <Typography variant="overline" color="text.secondary">
+        {label}
+      </Typography>
+      <Chip
+        label={count}
+        size="small"
+        sx={{ height: 18, fontSize: "0.65rem", fontWeight: 700 }}
+      />
+      <Box sx={{ flexGrow: 1 }} />
+      <IconButton
+        size="small"
+        sx={{
+          transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          transition: "transform 0.2s",
+        }}
+        aria-label={open ? "Collapse" : "Expand"}
+      >
+        <ExpandMoreRoundedIcon fontSize="small" />
+      </IconButton>
+    </Box>
+  );
+}
+
+function PastQuizContent({
+  quiz,
+  chip,
+}: {
+  quiz: { title: string; biblePortion: string; questionCount: number; participants: number; endTime: string };
+  chip: React.ReactNode;
+}) {
+  return (
+    <CardContent>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="subtitle1" fontWeight={600}>
+            {quiz.title}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {quiz.biblePortion}
+          </Typography>
+        </Box>
+        {chip}
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          mt: 1.5,
+          flexWrap: "wrap",
+        }}
+      >
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+        >
+          <QuizRoundedIcon sx={{ fontSize: 14 }} /> {quiz.questionCount} questions
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+        >
+          <PeopleRoundedIcon sx={{ fontSize: 14 }} /> {quiz.participants}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+        >
+          <CalendarTodayRoundedIcon sx={{ fontSize: 14 }} /> Closed{" "}
+          {new Date(quiz.endTime).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+          })}
+        </Typography>
+      </Box>
+    </CardContent>
   );
 }

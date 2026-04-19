@@ -60,10 +60,27 @@ export default async function QuizzesPage() {
   const upcomingQuizzes = regularQuizzes.filter((q) => now < q.startTime);
   const pastQuizzes = regularQuizzes.filter((q) => now > q.endTime);
 
-  const attemptedPastCount = pastQuizzes.filter(
+  const prereqIsActive =
+    !!prerequisiteQuiz &&
+    now >= prerequisiteQuiz.startTime &&
+    now <= prerequisiteQuiz.endTime;
+  const prereqIsPast = !!prerequisiteQuiz && now > prerequisiteQuiz.endTime;
+
+  const attemptedCount = userAttempts.filter((a) => a.isComplete).length;
+
+  const pastBucket = [
+    ...pastQuizzes,
+    ...(prereqIsPast && prerequisiteQuiz ? [prerequisiteQuiz] : []),
+  ];
+  const attemptedPastQuizzes = pastBucket.filter(
     (q) => attemptMap[q.id] === true
-  ).length;
-  const missedPastCount = pastQuizzes.length - attemptedPastCount;
+  );
+  const skippedPastQuizzes = pastBucket.filter(
+    (q) => attemptMap[q.id] !== true
+  );
+  const skippedCount = skippedPastQuizzes.length;
+
+  const currentCount = activeQuizzes.length + (prereqIsActive ? 1 : 0);
 
   const prereqAttempted = prerequisiteQuiz ? attemptMap[prerequisiteQuiz.id] : undefined;
 
@@ -74,8 +91,9 @@ export default async function QuizzesPage() {
         isApproved={isApproved}
         isQualified={isQualified}
         userName={dbUser?.name || session.user.name || ""}
-        quizzesAttempted={attemptedPastCount}
-        quizzesMissed={missedPastCount}
+        quizzesAttempted={attemptedCount}
+        quizzesSkipped={skippedCount}
+        quizzesCurrent={currentCount}
         prerequisiteQuiz={
           prerequisiteQuiz
             ? {
@@ -103,15 +121,22 @@ export default async function QuizzesPage() {
           questionCount: q.questionCount,
           startTime: q.startTime.toISOString(),
         }))}
-        pastQuizzes={pastQuizzes.map((q) => ({
+        attemptedQuizzes={attemptedPastQuizzes.map((q) => ({
           id: q.id,
           title: q.title,
           biblePortion: q.biblePortion,
           questionCount: q.questionCount,
           endTime: q.endTime.toISOString(),
           participants: q._count.attempts,
-          attempted: attemptMap[q.id],
           userScore: scoreMap[q.id] ?? null,
+        }))}
+        skippedQuizzes={skippedPastQuizzes.map((q) => ({
+          id: q.id,
+          title: q.title,
+          biblePortion: q.biblePortion,
+          questionCount: q.questionCount,
+          endTime: q.endTime.toISOString(),
+          participants: q._count.attempts,
         }))}
       />
       <BottomNav />
