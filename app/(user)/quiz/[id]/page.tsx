@@ -36,6 +36,7 @@ export default function QuizAttemptPage() {
   const [timeLeft, setTimeLeft] = useState(120);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [existingAnswers, setExistingAnswers] = useState<Map<string, string>>(new Map());
   const [timeSpent, setTimeSpent] = useState<Map<string, number>>(new Map());
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -45,6 +46,7 @@ export default function QuizAttemptPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const leavingRef = useRef(false);
   const lockedRef = useRef<Set<string>>(new Set());
+  const advancingRef = useRef(false);
   const existingAnswersRef = useRef(existingAnswers);
   const timeSpentRef = useRef(timeSpent);
   useEffect(() => {
@@ -243,28 +245,46 @@ export default function QuizAttemptPage() {
   };
 
   const handleSubmitAnswer = async (autoAdvance: boolean) => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
+    setAdvancing(true);
     if (timerRef.current) clearInterval(timerRef.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    await saveAnswer(answer, true);
+    try {
+      await saveAnswer(answer, true);
 
-    const isLast = currentIndex >= questions.length - 1;
-    if (isLast) {
-      await handleCompleteQuiz();
-    } else if (autoAdvance) {
-      setCurrentIndex((prev) => prev + 1);
+      const isLast = currentIndex >= questions.length - 1;
+      if (isLast) {
+        await handleCompleteQuiz();
+      } else if (autoAdvance) {
+        setCurrentIndex((prev) => prev + 1);
+      }
+    } finally {
+      advancingRef.current = false;
+      setAdvancing(false);
     }
   };
 
   const handleNext = async () => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
+    setAdvancing(true);
     if (timerRef.current) clearInterval(timerRef.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    await saveAnswer(answer, true);
+    try {
+      await saveAnswer(answer, true);
 
-    const isLast = currentIndex >= questions.length - 1;
-    if (isLast) {
-      await handleCompleteQuiz();
-    } else {
-      setCurrentIndex((prev) => prev + 1);
+      const isLast = currentIndex >= questions.length - 1;
+      if (isLast) {
+        await handleCompleteQuiz();
+      } else {
+        setCurrentIndex((prev) => prev + 1);
+      }
+    } finally {
+      advancingRef.current = false;
+      setAdvancing(false);
     }
   };
 
@@ -351,7 +371,7 @@ export default function QuizAttemptPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (!submitting) handleNext();
+            if (!submitting && !advancing) handleNext();
           }}
         >
           <input
@@ -380,14 +400,26 @@ export default function QuizAttemptPage() {
 
           <button
             type="submit"
-            disabled={submitting}
-            className="mt-4 w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+            disabled={submitting || advancing}
+            className="mt-4 w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {submitting
-              ? "Submitting..."
-              : isLast
-              ? "Submit Quiz"
-              : "Next"}
+            {(submitting || advancing) && (
+              <span
+                aria-hidden
+                className="inline-block w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"
+              />
+            )}
+            <span>
+              {submitting
+                ? "Submitting..."
+                : advancing
+                ? isLast
+                  ? "Submitting..."
+                  : "Loading..."
+                : isLast
+                ? "Submit Quiz"
+                : "Next"}
+            </span>
           </button>
         </form>
       </div>
