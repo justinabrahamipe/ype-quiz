@@ -343,13 +343,20 @@ export default function QuizAttemptPage() {
           }}
         >
           <input
-            type={currentQuestion.answerType === "number" ? "number" : "text"}
+            key={currentQuestion.id}
+            type="text"
             inputMode={currentQuestion.answerType === "number" ? "numeric" : "text"}
+            pattern={currentQuestion.answerType === "number" ? "[0-9]*" : undefined}
             enterKeyHint={isLast ? "done" : "next"}
             value={answer}
             onChange={(e) => handleInputChange(e.target.value)}
             placeholder="Type your answer here..."
             autoFocus
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoComplete="off"
+            name="quiz-answer"
             className="w-full px-4 py-4 text-lg rounded-xl bg-white dark:bg-slate-800 border-2 border-blue-300 dark:border-blue-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors"
           />
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">

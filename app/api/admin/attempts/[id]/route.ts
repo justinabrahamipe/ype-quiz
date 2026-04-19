@@ -16,7 +16,11 @@ export async function DELETE(
 
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
-    select: { id: true, userId: true },
+    select: {
+      id: true,
+      userId: true,
+      quiz: { select: { isPrerequisite: true } },
+    },
   });
 
   if (!attempt) {
@@ -27,6 +31,15 @@ export async function DELETE(
     where: { id: attemptId },
     data: { archivedAt: new Date() },
   });
+
+  // Removing a qualifying-quiz attempt revokes the qualification it granted,
+  // so the user can re-take the quiz and re-qualify.
+  if (attempt.quiz.isPrerequisite) {
+    await prisma.user.update({
+      where: { id: attempt.userId },
+      data: { isQualified: false },
+    });
+  }
 
   await updateOverallScore(attempt.userId);
 
