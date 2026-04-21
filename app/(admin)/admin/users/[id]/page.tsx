@@ -49,7 +49,7 @@ type UserDetail = {
   image: string | null;
   role: string;
   isQualified: boolean;
-  overallScore: { totalScore: string } | null;
+  score: number;
   attempts: Attempt[];
 };
 
@@ -137,7 +137,7 @@ export default function UserDetailPage() {
                   variant="outlined"
                 />
                 <Chip
-                  label={`${user.overallScore ? Number(user.overallScore.totalScore) : 0} pts`}
+                  label={`${user.score} pts`}
                   size="small"
                   variant="outlined"
                 />

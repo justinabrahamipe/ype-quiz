@@ -22,6 +22,7 @@ type Member = {
   score: number;
   quizzesAttempted: number;
   quizzesMissed: number;
+  rank: number;
 };
 
 const MEDAL = {
@@ -63,8 +64,8 @@ const MEDAL = {
   },
 };
 
-function medalFor(i: number) {
-  return i === 0 ? MEDAL.gold : i === 1 ? MEDAL.silver : i === 2 ? MEDAL.bronze : null;
+function medalForRank(rank: number) {
+  return rank === 1 ? MEDAL.gold : rank === 2 ? MEDAL.silver : rank === 3 ? MEDAL.bronze : null;
 }
 
 export function MembersContent({ members, currentUserId }: { members: Member[]; currentUserId?: string }) {
@@ -72,8 +73,18 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
 
   const topN = members.slice(0, Math.min(5, members.length));
   const topLines = topN
-    .map((m, i) => `${i + 1}. ${m.name} — ${m.score} pts`)
+    .map((m) => `${m.rank}. ${m.name} — ${m.score} pts`)
     .join("\n");
+
+  // Only show the 3-tier podium when 1st / 2nd / 3rd are clearly distinct.
+  // If any of the top three are tied, skip the podium and let the list below
+  // show the shared ranks instead.
+  const showPodium =
+    members.length >= 3 &&
+    members[0].score > 0 &&
+    members[0].rank === 1 &&
+    members[1].rank === 2 &&
+    members[2].rank === 3;
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
@@ -111,8 +122,8 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
         />
       </Box>
 
-      {/* Top 3 Podium - only show if top scorer has points */}
-      {members.length >= 3 && members[0].score > 0 && (
+      {/* Top 3 Podium - only when the top three are distinct ranks */}
+      {showPodium && (
         <Card elevation={0} sx={{ mb: 3, p: 3, bgcolor: "background.paper" }}>
           <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: { xs: 1.5, sm: 2.5 }, pt: 3 }}>
             {/* 2nd */}
@@ -226,7 +237,7 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
         {members.map((member, i) => {
           const isCurrentUser = currentUserId === member.id;
           const barWidth = maxScore > 0 ? (member.score / maxScore) * 100 : 0;
-          const medal = medalFor(i);
+          const medal = medalForRank(member.rank);
           return (
             <Box key={member.id}>
               {i > 0 && !medal && <Divider />}
@@ -271,7 +282,7 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
                             lineHeight: 1,
                           }}
                         >
-                          {i + 1}
+                          {member.rank}
                         </Typography>
                       </Box>
                     ) : (
@@ -280,7 +291,7 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
                         fontWeight={700}
                         sx={{ width: 32, textAlign: "center", color: "text.secondary" }}
                       >
-                        {i + 1}
+                        {member.rank}
                       </Typography>
                     )}
                     <Avatar

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 import { MembersContent } from "@/components/members-content";
+import { getUsersAggregates } from "@/lib/aggregate-score";
 
 export const metadata: Metadata = (() => {
   const siteUrl =
@@ -34,32 +35,39 @@ export default async function MembersPage() {
 
   const qualifiedUsers = await prisma.user.findMany({
     where: { isQualified: true, isApproved: true, role: "user" },
-    include: {
-      overallScore: true,
-      _count: {
-        select: {
-          attempts: {
-            where: {
-              isComplete: true,
-              archivedAt: null,
-              quiz: { isPrerequisite: false },
-            },
-          },
-        },
-      },
-    },
-    orderBy: { overallScore: { totalScore: "desc" } },
+    select: { id: true, name: true, email: true, image: true },
   });
+  const aggregates = await getUsersAggregates(qualifiedUsers.map((u) => u.id));
 
-  const members = qualifiedUsers.map((u) => ({
-    id: u.id,
-    name: u.name || "Anonymous",
-    email: u.email,
-    image: u.image,
-    score: Number(u.overallScore?.totalScore ?? 0),
-    quizzesAttempted: u._count.attempts,
-    quizzesMissed: u.overallScore?.quizzesMissed ?? 0,
-  }));
+  const sorted = qualifiedUsers
+    .map((u) => {
+      const agg = aggregates.get(u.id) ?? {
+        totalScore: 0,
+        quizzesAttempted: 0,
+        quizzesMissed: 0,
+      };
+      return {
+        id: u.id,
+        name: u.name || "Anonymous",
+        email: u.email,
+        image: u.image,
+        score: agg.totalScore,
+        quizzesAttempted: agg.quizzesAttempted,
+        quizzesMissed: agg.quizzesMissed,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  // Competition ranking: tied scores share a rank, the next rank skips
+  // accordingly (1, 2, 2, 4 …).
+  let lastScore: number | null = null;
+  let lastRank = 0;
+  const members = sorted.map((m, i) => {
+    const rank = m.score === lastScore ? lastRank : i + 1;
+    lastScore = m.score;
+    lastRank = rank;
+    return { ...m, rank };
+  });
 
   return (
     <div className="min-h-screen bg-background">

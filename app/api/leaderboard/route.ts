@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getUsersAggregates } from "@/lib/aggregate-score";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -42,19 +43,29 @@ export async function GET(req: NextRequest) {
   }
 
   // Overall leaderboard
-  const scores = await prisma.overallScore.findMany({
-    where: { user: { isApproved: true, role: "user" } },
-    include: { user: { select: { id: true, name: true, image: true } } },
-    orderBy: { totalScore: "desc" },
+  const users = await prisma.user.findMany({
+    where: { isApproved: true, role: "user" },
+    select: { id: true, name: true, image: true },
   });
+  const aggregates = await getUsersAggregates(users.map((u) => u.id));
+  const sorted = users
+    .map((u) => ({
+      user_id: u.id,
+      name: u.name,
+      image: u.image,
+      score: aggregates.get(u.id)?.totalScore ?? 0,
+    }))
+    .sort((a, b) => b.score - a.score);
 
-  const leaderboard = scores.map((s, i) => ({
-    rank: i + 1,
-    user_id: s.userId,
-    name: s.user.name,
-    image: s.user.image,
-    score: Number(s.totalScore),
-  }));
+  // Competition ranking: tied scores share a rank.
+  let lastScore: number | null = null;
+  let lastRank = 0;
+  const leaderboard = sorted.map((row, i) => {
+    const rank = row.score === lastScore ? lastRank : i + 1;
+    lastScore = row.score;
+    lastRank = rank;
+    return { rank, ...row };
+  });
 
   return NextResponse.json(leaderboard);
 }

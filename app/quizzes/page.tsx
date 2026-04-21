@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 import { QuizzesDashboard } from "@/components/quizzes-dashboard";
-import { backfillAttemptScores, updateOverallScore } from "@/lib/scoring";
+import { backfillAttemptScores } from "@/lib/scoring";
 
 export default async function QuizzesPage() {
   const session = await auth();
@@ -14,7 +14,6 @@ export default async function QuizzesPage() {
   const now = new Date();
 
   await backfillAttemptScores(userId);
-  await updateOverallScore(userId);
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },

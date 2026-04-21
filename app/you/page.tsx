@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/header";
 import { BottomNav } from "@/components/bottom-nav";
 import { YouContent } from "@/components/you-content";
-import { backfillAttemptScores, updateOverallScore } from "@/lib/scoring";
+import { backfillAttemptScores } from "@/lib/scoring";
 import { getOverallRank } from "@/lib/rank";
+import { getUserAggregate } from "@/lib/aggregate-score";
 
 export default async function YouPage() {
   const session = await auth();
@@ -15,14 +16,12 @@ export default async function YouPage() {
 
   // Backfill any legacy unscored attempts before reading stats
   await backfillAttemptScores(userId);
-  await updateOverallScore(userId);
 
-  const [dbUser, overallScore, attempts] = await Promise.all([
+  const [dbUser, attempts, aggregate] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true, image: true, isQualified: true, createdAt: true },
     }),
-    prisma.overallScore.findUnique({ where: { userId } }),
     prisma.attempt.findMany({
       where: { userId, isComplete: true, archivedAt: null },
       include: {
@@ -30,29 +29,27 @@ export default async function YouPage() {
       },
       orderBy: { completedAt: "desc" },
     }),
+    getUserAggregate(userId),
   ]);
 
-  // Calculate stats from actual attempts
   const now2 = new Date();
-  const quizzesAttempted = attempts.filter((a) => !a.quiz.isPrerequisite).length;
+  // For YouContent we only show points from finalised quizzes (closed regular
+  // quizzes + the prereq), so an in-progress quiz's score isn't revealed early.
   const totalPoints = attempts
     .filter((a) => a.quiz.isPrerequisite || a.quiz.endTime < now2)
-    .reduce(
-      (sum, a) => sum + Number(a.rawScore ?? 0),
-      0
-    );
+    .reduce((sum, a) => sum + Number(a.rawScore ?? 0), 0);
 
-  const compareScore = Number(overallScore?.totalScore ?? totalPoints);
+  const onBoard =
+    aggregate.totalScore > 0 ||
+    aggregate.quizzesAttempted > 0 ||
+    aggregate.quizzesMissed > 0;
   const { rank, tiedCount, totalMembers } = await getOverallRank(
-    compareScore,
-    !!overallScore
+    aggregate.totalScore,
+    onBoard
   );
 
-  // Quizzes missed: total non-prereq quizzes that ended before now minus attempted
-  const endedQuizzes = await prisma.quiz.count({
-    where: { isPrerequisite: false, endTime: { lt: new Date() } },
-  });
-  const quizzesMissed = Math.max(0, endedQuizzes - quizzesAttempted);
+  const quizzesAttempted = aggregate.quizzesAttempted;
+  const quizzesMissed = aggregate.quizzesMissed;
 
   return (
     <div className="min-h-screen bg-background">

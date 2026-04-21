@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { updateOverallScore } from "@/lib/scoring";
 
 export async function DELETE(
   req: NextRequest,
@@ -40,8 +39,6 @@ export async function DELETE(
       data: { isQualified: false },
     });
   }
-
-  await updateOverallScore(attempt.userId);
 
   return NextResponse.json({ archived: true });
 }

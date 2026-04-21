@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isCorrect as checkAnswer } from "@/lib/answer-matcher";
-import { updateOverallScore } from "@/lib/scoring";
 
 export async function POST(
   req: NextRequest,
@@ -99,8 +98,6 @@ export async function POST(
       qualified: percentage >= 70,
     });
   }
-
-  await updateOverallScore(session.user.id);
 
   return NextResponse.json({ submitted: true });
 }

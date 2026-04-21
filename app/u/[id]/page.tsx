@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getOverallRank } from "@/lib/rank";
+import { getUserAggregate } from "@/lib/aggregate-score";
 import { UserShareView } from "./user-share-view";
 
 export const dynamic = "force-dynamic";
@@ -22,28 +23,23 @@ async function getUserStanding(id: string) {
   });
   if (!user || !user.isApproved || user.role !== "user") return null;
 
-  const [overallScore, quizzesAttempted] = await Promise.all([
-    prisma.overallScore.findUnique({ where: { userId: id } }),
-    prisma.attempt.count({
-      where: {
-        userId: id,
-        isComplete: true,
-        archivedAt: null,
-        quiz: { isPrerequisite: false },
-      },
-    }),
-  ]);
-
-  const score = Number(overallScore?.totalScore ?? 0);
-  const { rank, totalMembers } = await getOverallRank(score, !!overallScore);
+  const aggregate = await getUserAggregate(id);
+  const onBoard =
+    aggregate.totalScore > 0 ||
+    aggregate.quizzesAttempted > 0 ||
+    aggregate.quizzesMissed > 0;
+  const { rank, totalMembers } = await getOverallRank(
+    aggregate.totalScore,
+    onBoard
+  );
 
   return {
     name: user.name || "Anonymous",
     image: user.image,
-    score,
+    score: aggregate.totalScore,
     rank,
     totalMembers,
-    quizzesAttempted,
+    quizzesAttempted: aggregate.quizzesAttempted,
   };
 }
 

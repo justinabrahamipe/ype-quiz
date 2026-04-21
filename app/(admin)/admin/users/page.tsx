@@ -43,7 +43,7 @@ type UserItem = {
   isQualified: boolean;
   isApproved: boolean;
   createdAt: string;
-  overallScore: { totalScore: string } | null;
+  score: number;
 };
 
 export default function ManageUsersPage() {
@@ -55,10 +55,6 @@ export default function ManageUsersPage() {
   // Menu
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuUser, setMenuUser] = useState<UserItem | null>(null);
-
-  // Score edit
-  const [editScoreUser, setEditScoreUser] = useState<UserItem | null>(null);
-  const [scoreValue, setScoreValue] = useState("");
 
   // Delete confirmation
   const [deleteUser, setDeleteUser] = useState<UserItem | null>(null);
@@ -134,13 +130,6 @@ export default function ManageUsersPage() {
     setDeleting(false);
   };
 
-  const handleSaveScore = async () => {
-    if (!editScoreUser) return;
-    await doAction(editScoreUser.id, "set_score", { score: Number(scoreValue) });
-    setEditScoreUser(null);
-    setScoreValue("");
-  };
-
   const handleSetRole = async (role: string) => {
     if (!roleUser) return;
     await doAction(roleUser.id, "toggle_role", { role });
@@ -169,7 +158,7 @@ export default function ManageUsersPage() {
 
   const renderRow = (user: UserItem, i: number, arr: UserItem[]) => {
     const isSuperAdmin = user.email === SUPER_ADMIN_EMAIL;
-    const score = user.overallScore ? Number(user.overallScore.totalScore) : 0;
+    const score = user.score;
     return (
       <Box key={user.id}>
         {i > 0 && <Divider />}
@@ -337,16 +326,6 @@ export default function ManageUsersPage() {
             <ListItemText>Revoke Approval</ListItemText>
           </MenuItem>
         )}
-        <MenuItem onClick={() => {
-          if (menuUser) {
-            setEditScoreUser(menuUser);
-            setScoreValue(String(menuUser.overallScore ? Number(menuUser.overallScore.totalScore) : 0));
-          }
-          closeMenu();
-        }}>
-          <ListItemIcon><EditRoundedIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Edit Score</ListItemText>
-        </MenuItem>
         {menuUser?.email !== SUPER_ADMIN_EMAIL && (
           <MenuItem onClick={() => {
             if (menuUser) { setDeleteUser(menuUser); setDeleteConfirmText(""); }
@@ -385,26 +364,6 @@ export default function ManageUsersPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRoleUser(null)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Edit Score Dialog */}
-      <Dialog open={!!editScoreUser} onClose={() => setEditScoreUser(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Edit Score — {editScoreUser?.name || editScoreUser?.email}</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            type="number"
-            label="Total Score"
-            value={scoreValue}
-            onChange={(e) => setScoreValue(e.target.value)}
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditScoreUser(null)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveScore}>Save</Button>
         </DialogActions>
       </Dialog>
 

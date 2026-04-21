@@ -5,6 +5,7 @@ import {
   readPublicImageAsDataUri,
 } from "@/lib/og-helpers";
 import { getOverallRank } from "@/lib/rank";
+import { getUserAggregate } from "@/lib/aggregate-score";
 
 export const runtime = "nodejs";
 export const contentType = "image/png";
@@ -52,26 +53,20 @@ export default async function UserOgImage({
       );
     }
 
-    const [overallScore, attemptsCount, avatar, logo] = await Promise.all([
-      prisma.overallScore.findUnique({ where: { userId: id } }),
-      prisma.attempt.count({
-        where: {
-          userId: id,
-          isComplete: true,
-          archivedAt: null,
-          quiz: { isPrerequisite: false },
-        },
-      }),
+    const [aggregate, avatar, logo] = await Promise.all([
+      getUserAggregate(id),
       fetchImageAsDataUri(user.image),
       readPublicImageAsDataUri("logo.png"),
     ]);
 
     const name = user.name || "Anonymous";
-    const score = Number(overallScore?.totalScore ?? 0);
-    const { rank, totalMembers } = await getOverallRank(
-      score,
-      !!overallScore
-    );
+    const score = aggregate.totalScore;
+    const attemptsCount = aggregate.quizzesAttempted;
+    const onBoard =
+      aggregate.totalScore > 0 ||
+      aggregate.quizzesAttempted > 0 ||
+      aggregate.quizzesMissed > 0;
+    const { rank, totalMembers } = await getOverallRank(score, onBoard);
 
     const rankLabel =
       rank === 1 ? "1st" : rank === 2 ? "2nd" : rank === 3 ? "3rd" : `#${rank}`;

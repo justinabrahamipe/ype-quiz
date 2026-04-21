@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
 import { readPublicImageAsDataUri } from "@/lib/og-helpers";
+import { getUsersAggregates } from "@/lib/aggregate-score";
 
 export const runtime = "nodejs";
 export const contentType = "image/png";
@@ -9,23 +10,23 @@ export const size = { width: 1080, height: 1350 };
 
 export default async function LeaderboardOgImage() {
   try {
-    const [members, totalQualified, logo] = await Promise.all([
+    const [allQualified, logo] = await Promise.all([
       prisma.user.findMany({
         where: { isQualified: true, isApproved: true, role: "user" },
-        include: { overallScore: true },
-        orderBy: { overallScore: { totalScore: "desc" } },
-        take: 8,
-      }),
-      prisma.user.count({
-        where: { isQualified: true, isApproved: true, role: "user" },
+        select: { id: true, name: true },
       }),
       readPublicImageAsDataUri("logo.png"),
     ]);
 
-    const list = members.map((u) => ({
-      name: u.name || "Anonymous",
-      score: Number(u.overallScore?.totalScore ?? 0),
-    }));
+    const totalQualified = allQualified.length;
+    const aggregates = await getUsersAggregates(allQualified.map((u) => u.id));
+    const list = allQualified
+      .map((u) => ({
+        name: u.name || "Anonymous",
+        score: aggregates.get(u.id)?.totalScore ?? 0,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8);
 
     const rankColor = (i: number) =>
       i === 0

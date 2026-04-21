@@ -31,6 +31,9 @@ model User {
   attempts       Attempt[]
   quizzesCreated Quiz[]
   overallScore   OverallScore?
+
+  // Speeds up "approved members" listing on the leaderboard / rank queries.
+  @@index([role, isApproved])
 }
 
 model AppSettings {
@@ -53,6 +56,10 @@ model Quiz {
   attempts         Attempt[]
   penaltyProcessed Boolean    @default(false)
   resultsProcessed Boolean    @default(false)
+
+  // For the "past non-prereq quizzes" filter used by the missed-count compute
+  // and several pages.
+  @@index([isPrerequisite, endTime])
 }
 
 model Question {
@@ -64,6 +71,8 @@ model Question {
   acceptedAnswers String[]
   orderIndex      Int
   answers         Answer[]
+
+  @@index([quizId])
 }
 
 model Attempt {
@@ -81,6 +90,10 @@ model Attempt {
   answers     Answer[]
 
   @@unique([quizId, userId])
+  // Hot-path for live score aggregation (per-user score sums and counts).
+  // The unique([quizId, userId]) is quizId-leading so doesn't help userId
+  // lookups.
+  @@index([userId, isComplete, archivedAt])
 }
 
 model Answer {
@@ -93,6 +106,10 @@ model Answer {
   isCorrect        Boolean?
   answeredAt       DateTime  @default(now())
   timeTakenSeconds Int?
+
+  // Loading an attempt's answers is the most common access pattern.
+  @@index([attemptId])
+  @@index([questionId])
 }
 
 model OverallScore {

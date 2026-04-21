@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getUserAggregate } from "@/lib/aggregate-score";
 
 export async function GET(
   req: NextRequest,
@@ -16,7 +17,6 @@ export async function GET(
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      overallScore: true,
       attempts: {
         where: { isComplete: true },
         include: {
@@ -35,7 +35,8 @@ export async function GET(
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  return NextResponse.json(user);
+  const aggregate = await getUserAggregate(userId);
+  return NextResponse.json({ ...user, score: aggregate.totalScore });
 }
 
 // Update individual answer marks

@@ -1,25 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { processPenalties } from "@/lib/scoring";
 
+// "Missed" counts are now derived live from quiz/attempt tables (see
+// lib/aggregate-score.ts), so this cron is a no-op. Kept as a stable endpoint
+// in case the schedule still fires.
 export async function GET() {
-  const now = new Date();
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-  const quizzes = await prisma.quiz.findMany({
-    where: {
-      resultsProcessed: true,
-      penaltyProcessed: false,
-      endTime: { lte: now, gte: oneDayAgo },
-    },
-  });
-
-  for (const quiz of quizzes) {
-    await processPenalties(quiz.id);
-  }
-
-  return NextResponse.json({
-    processed: quizzes.length,
-    quizIds: quizzes.map((q) => q.id),
-  });
+  return NextResponse.json({ processed: 0, deprecated: true });
 }

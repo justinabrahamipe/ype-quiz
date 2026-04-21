@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Role } from "@prisma/client";
+import { getUsersAggregates } from "@/lib/aggregate-score";
 
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || "mahanaimype@gmail.com";
 
@@ -12,13 +13,17 @@ export async function GET() {
   }
 
   const users = await prisma.user.findMany({
-    include: { overallScore: true },
     orderBy: { createdAt: "desc" },
   });
+  const aggregates = await getUsersAggregates(users.map((u) => u.id));
+  const withScore = users.map((u) => ({
+    ...u,
+    score: aggregates.get(u.id)?.totalScore ?? 0,
+  }));
 
   // Sort: super admin first, then admins, then quizmasters, then users
   const roleOrder: Record<string, number> = { admin: 0, quizmaster: 1, user: 2 };
-  const sorted = [...users].sort((a, b) => {
+  const sorted = [...withScore].sort((a, b) => {
     if (a.email === SUPER_ADMIN_EMAIL) return -1;
     if (b.email === SUPER_ADMIN_EMAIL) return 1;
     const ra = roleOrder[a.role] ?? 2;
@@ -95,21 +100,6 @@ export async function PATCH(req: NextRequest) {
       data: { isApproved: false },
     });
     return NextResponse.json({ updated: true, field: "isApproved", value: false });
-  }
-
-  // Edit score
-  if (action === "set_score") {
-    const { score } = body;
-    if (score === undefined || isNaN(Number(score))) {
-      return NextResponse.json({ error: "Valid score required" }, { status: 400 });
-    }
-
-    await prisma.overallScore.upsert({
-      where: { userId: user_id },
-      update: { totalScore: Number(score) },
-      create: { userId: user_id, totalScore: Number(score) },
-    });
-    return NextResponse.json({ updated: true, field: "score" });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });

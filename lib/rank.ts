@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { getUsersAggregates } from "./aggregate-score";
 
 type OverallRank = {
   rank: number;
@@ -9,35 +10,32 @@ type OverallRank = {
 /**
  * Rank a user on the overall (cross-quiz) leaderboard.
  *
- * Returns `rank = 0` if the user has no OverallScore row yet. Ties are resolved
- * shared-rank style: everyone with the same score sees the same `rank`, and
- * `tiedCount` tells them how many other members share it.
+ * Pass the user's live-computed totalScore and whether they should be assigned
+ * a rank (e.g. true once they have any participation). Returns `rank = 0` if
+ * `hasScore` is false. Ties are shared-rank: everyone with the same score sees
+ * the same `rank`, and `tiedCount` is the number of OTHER members at that
+ * score.
  */
 export async function getOverallRank(
   score: number,
-  hasScoreRow: boolean
+  hasScore: boolean
 ): Promise<OverallRank> {
-  const [higher, same, totalMembers] = await Promise.all([
-    prisma.overallScore.count({
-      where: {
-        totalScore: { gt: score },
-        user: { isApproved: true, role: "user" },
-      },
-    }),
-    prisma.overallScore.count({
-      where: {
-        totalScore: score,
-        user: { isApproved: true, role: "user" },
-      },
-    }),
-    prisma.overallScore.count({
-      where: { user: { isApproved: true, role: "user" } },
-    }),
-  ]);
+  const users = await prisma.user.findMany({
+    where: { isApproved: true, role: "user" },
+    select: { id: true },
+  });
+  const aggregates = await getUsersAggregates(users.map((u) => u.id));
 
-  const rank = hasScoreRow ? higher + 1 : 0;
-  const tiedCount = hasScoreRow ? Math.max(0, same - 1) : 0;
-  return { rank, tiedCount, totalMembers };
+  let higher = 0;
+  let same = 0;
+  for (const agg of aggregates.values()) {
+    if (agg.totalScore > score) higher++;
+    else if (agg.totalScore === score) same++;
+  }
+
+  const rank = hasScore ? higher + 1 : 0;
+  const tiedCount = hasScore ? Math.max(0, same - 1) : 0;
+  return { rank, tiedCount, totalMembers: users.length };
 }
 
 type QuizRank = {
