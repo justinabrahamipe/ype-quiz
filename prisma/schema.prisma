@@ -17,6 +17,7 @@ enum Role {
 enum AnswerType {
   text
   number
+  mcq
 }
 
 model User {
@@ -42,13 +43,14 @@ model AppSettings {
 }
 
 model Quiz {
-  id               String     @id @default(uuid())
-  title            String
-  biblePortion     String
-  startTime        DateTime
-  endTime          DateTime
-  questionCount    Int
-  isPrerequisite   Boolean    @default(false)
+  id                  String     @id @default(uuid())
+  title               String
+  biblePortion        String
+  startTime           DateTime
+  endTime             DateTime
+  questionCount       Int
+  secondsPerQuestion  Int        @default(120)
+  isPrerequisite      Boolean    @default(false)
   createdBy        String
   creator          User       @relation(fields: [createdBy], references: [id])
   createdAt        DateTime   @default(now())
@@ -69,7 +71,9 @@ model Question {
   questionText    String
   answerType      AnswerType
   acceptedAnswers String[]
+  choices         String[]   @default([])
   orderIndex      Int
+  maxAnswerLength Int?
   answers         Answer[]
 
   @@index([quizId])
@@ -97,15 +101,16 @@ model Attempt {
 }
 
 model Answer {
-  id               String    @id @default(uuid())
-  attemptId        String
-  attempt          Attempt   @relation(fields: [attemptId], references: [id])
-  questionId       String
-  question         Question  @relation(fields: [questionId], references: [id])
-  submittedText    String?
-  isCorrect        Boolean?
-  answeredAt       DateTime  @default(now())
-  timeTakenSeconds Int?
+  id                  String    @id @default(uuid())
+  attemptId           String
+  attempt             Attempt   @relation(fields: [attemptId], references: [id])
+  questionId          String
+  question            Question  @relation(fields: [questionId], references: [id])
+  submittedText       String?
+  isCorrect           Boolean?
+  manuallyOverridden  Boolean   @default(false)
+  answeredAt          DateTime  @default(now())
+  timeTakenSeconds    Int?
 
   // Loading an attempt's answers is the most common access pattern.
   @@index([attemptId])

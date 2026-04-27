@@ -19,8 +19,8 @@ const ZERO: UserAggregate = {
  * Definitions (chosen to match the legacy updateOverallScore + processPenalties
  * semantics so display values don't shift):
  *   - totalScore: SUM(attempt.rawScore) over non-archived completed attempts.
- *   - quizzesAttempted: count of non-archived completed non-prerequisite
- *     attempts.
+ *   - quizzesAttempted: count of non-archived completed attempts (includes
+ *     the qualifying quiz).
  *   - quizzesMissed: count of non-prerequisite quizzes that ended before now
  *     AND started after the user joined, for which the user has no attempt at
  *     all (matches the old penalty processor's eligibility check).
@@ -47,7 +47,6 @@ export async function getUserAggregate(
           userId,
           isComplete: true,
           archivedAt: null,
-          quiz: { isPrerequisite: false },
         },
       }),
       prisma.quiz.count({
@@ -100,7 +99,6 @@ export async function getUsersAggregates(
         rawScore: true,
         isComplete: true,
         archivedAt: true,
-        quiz: { select: { isPrerequisite: true } },
       },
     }),
     prisma.quiz.findMany({
@@ -119,7 +117,7 @@ export async function getUsersAggregates(
       attemptedQuizIds.add(a.quizId);
       if (a.isComplete && !a.archivedAt) {
         totalScore += Number(a.rawScore ?? 0);
-        if (!a.quiz.isPrerequisite) quizzesAttempted++;
+        quizzesAttempted++;
       }
     }
 

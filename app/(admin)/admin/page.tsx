@@ -12,18 +12,31 @@ export default async function AdminDashboard() {
 
   const now = new Date();
 
-  const [totalUsers, totalQuizzes, activeQuiz, quizzes, hasPrerequisite] = await Promise.all([
+  const [totalUsers, totalQuizzes, activeQuiz, quizzes, hasPrerequisite, completedGroups] = await Promise.all([
     prisma.user.count(),
     prisma.quiz.count(),
     prisma.quiz.findFirst({
-      where: { startTime: { lte: now }, endTime: { gte: now } },
+      where: {
+        isPrerequisite: false,
+        startTime: { lte: now },
+        endTime: { gte: now },
+      },
     }),
     prisma.quiz.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { attempts: true } } },
     }),
     prisma.quiz.findFirst({ where: { isPrerequisite: true }, select: { id: true } }),
+    prisma.attempt.groupBy({
+      by: ["quizId"],
+      where: { isComplete: true, archivedAt: null },
+      _count: { _all: true },
+    }),
   ]);
+
+  const completedByQuiz = new Map(
+    completedGroups.map((g) => [g.quizId, g._count._all])
+  );
 
   const getStatus = (quiz: { startTime: Date; endTime: Date; isPrerequisite: boolean }) => {
     if (quiz.isPrerequisite) return "Qualifying";
@@ -96,6 +109,8 @@ export default async function AdminDashboard() {
                   <p className="text-xs text-[var(--muted)] mt-0.5 tabular-nums">
                     {quiz._count.attempts}{" "}
                     {quiz._count.attempts === 1 ? "attempt" : "attempts"}
+                    {" | "}
+                    {completedByQuiz.get(quiz.id) ?? 0} submissions
                   </p>
                 </div>
                 <span

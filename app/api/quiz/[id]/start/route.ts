@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
+// Deterministic per-seed Fisher–Yates shuffle. Same seed → same order, so a
+// user sees the same shuffle across refreshes/resumes.
+function deterministicShuffle<T>(items: T[], seedString: string): T[] {
+  const seed = seedString.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.abs((seed * (i + 1) * 2654435761) % (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -77,11 +89,17 @@ export async function POST(
         return NextResponse.json({
           attemptId: newAttempt.id,
           nextQuestionIndex: 0,
+          secondsPerQuestion: quiz.secondsPerQuestion,
           questions: quiz.questions.map((q) => ({
             id: q.id,
             questionText: q.questionText,
             answerType: q.answerType,
             orderIndex: q.orderIndex,
+            maxAnswerLength: q.maxAnswerLength,
+            choices:
+              q.answerType === "mcq"
+                ? deterministicShuffle(q.choices, session.user.id + q.id)
+                : [],
           })),
           serverTimestamp: new Date().toISOString(),
           existingAnswers: [],
@@ -100,12 +118,7 @@ export async function POST(
   }
 
   // Shuffle questions deterministically per user (seed = visitorId + quizId)
-  const seed = (session.user.id + quizId).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const shuffled = [...quiz.questions];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = (seed * (i + 1) * 2654435761) % (i + 1);
-    [shuffled[i], shuffled[Math.abs(j)]] = [shuffled[Math.abs(j)], shuffled[i]];
-  }
+  const shuffled = deterministicShuffle(quiz.questions, session.user.id + quizId);
 
   // Find first unanswered question index
   const answeredQuestionIds = new Set(attempt.answers.map((a) => a.questionId));
@@ -120,11 +133,17 @@ export async function POST(
   return NextResponse.json({
     attemptId: attempt.id,
     nextQuestionIndex: nextIndex,
+    secondsPerQuestion: quiz.secondsPerQuestion,
     questions: shuffled.map((q) => ({
       id: q.id,
       questionText: q.questionText,
       answerType: q.answerType,
       orderIndex: q.orderIndex,
+      maxAnswerLength: q.maxAnswerLength,
+      choices:
+        q.answerType === "mcq"
+          ? deterministicShuffle(q.choices, session.user.id + q.id)
+          : [],
     })),
     serverTimestamp: new Date().toISOString(),
     existingAnswers: attempt.answers.map((a) => ({

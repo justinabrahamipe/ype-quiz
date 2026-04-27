@@ -13,7 +13,7 @@ export async function PATCH(
 
   const { id: quizId } = await params;
   const body = await req.json();
-  const { startTime, endTime, title, biblePortion, questions } = body;
+  const { startTime, endTime, title, biblePortion, questions, secondsPerQuestion } = body;
 
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
   if (!quiz) {
@@ -26,6 +26,13 @@ export async function PATCH(
   if (endTime) quizUpdates.endTime = new Date(endTime);
   if (title) quizUpdates.title = title;
   if (biblePortion) quizUpdates.biblePortion = biblePortion;
+  if (
+    secondsPerQuestion != null &&
+    Number.isFinite(secondsPerQuestion) &&
+    secondsPerQuestion > 0
+  ) {
+    quizUpdates.secondsPerQuestion = Math.floor(secondsPerQuestion);
+  }
 
   if (quizUpdates.startTime && quizUpdates.endTime && (quizUpdates.endTime as Date) <= (quizUpdates.startTime as Date)) {
     return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
@@ -46,6 +53,15 @@ export async function PATCH(
       if (q.questionText !== undefined) questionUpdates.questionText = q.questionText;
       if (q.acceptedAnswers !== undefined) questionUpdates.acceptedAnswers = q.acceptedAnswers;
       if (q.answerType !== undefined) questionUpdates.answerType = q.answerType;
+      if (Array.isArray(q.choices)) {
+        questionUpdates.choices = q.choices.filter((c: string) => c && c.trim());
+      }
+      if (q.maxAnswerLength !== undefined) {
+        questionUpdates.maxAnswerLength =
+          q.maxAnswerLength != null && Number.isFinite(q.maxAnswerLength) && q.maxAnswerLength > 0
+            ? Math.floor(q.maxAnswerLength)
+            : null;
+      }
       if (Object.keys(questionUpdates).length > 0) {
         await prisma.question.update({
           where: { id: q.id },
@@ -57,7 +73,7 @@ export async function PATCH(
 
   // Add a new question
   if (body.addQuestion) {
-    const { questionText, answerType, acceptedAnswers } = body.addQuestion;
+    const { questionText, answerType, acceptedAnswers, choices, maxAnswerLength } = body.addQuestion;
     const maxOrder = await prisma.question.findFirst({
       where: { quizId },
       orderBy: { orderIndex: "desc" },
@@ -67,9 +83,14 @@ export async function PATCH(
       data: {
         quizId,
         questionText,
-        answerType: answerType || "text",
+        answerType: answerType || "mcq",
         acceptedAnswers: acceptedAnswers || [],
+        choices: Array.isArray(choices) ? choices.filter((c: string) => c && c.trim()) : [],
         orderIndex: (maxOrder?.orderIndex ?? -1) + 1,
+        maxAnswerLength:
+          maxAnswerLength != null && Number.isFinite(maxAnswerLength) && maxAnswerLength > 0
+            ? Math.floor(maxAnswerLength)
+            : null,
       },
     });
     await prisma.quiz.update({

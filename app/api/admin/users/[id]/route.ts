@@ -63,7 +63,7 @@ export async function PATCH(
     const newValue = !answer.isCorrect;
     await prisma.answer.update({
       where: { id: answerId },
-      data: { isCorrect: newValue },
+      data: { isCorrect: newValue, manuallyOverridden: true },
     });
 
     // Recalculate attempt raw score

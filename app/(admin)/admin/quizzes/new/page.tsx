@@ -7,8 +7,11 @@ import { toast } from "@/components/toaster";
 
 type QuestionForm = {
   questionText: string;
-  answerType: "text" | "number";
+  answerType: "text" | "number" | "mcq";
   acceptedAnswers: string[];
+  choices: string[];
+  correctIndex: number;
+  maxAnswerLength: string;
 };
 
 export default function CreateQuizPage() {
@@ -19,6 +22,7 @@ export default function CreateQuizPage() {
   const [startDateTime, setStartDateTime] = useState("");
   const [endDateTime, setEndDateTime] = useState("");
   const [questionCount, setQuestionCount] = useState(10);
+  const [secondsPerQuestion, setSecondsPerQuestion] = useState(120);
   const [isPrerequisite, setIsPrerequisite] = useState(false);
   const [questions, setQuestions] = useState<QuestionForm[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -39,17 +43,50 @@ export default function CreateQuizPage() {
     setQuestions(
       Array.from({ length: questionCount }, () => ({
         questionText: "",
-        answerType: "text" as const,
+        answerType: "mcq" as const,
         acceptedAnswers: [""],
+        choices: ["", "", "", "", "", "", "", ""],
+        correctIndex: 0,
+        maxAnswerLength: "40",
       }))
     );
     setStep(2);
   };
 
-  const updateQuestion = (idx: number, field: keyof QuestionForm, value: string | string[]) => {
+  const updateQuestion = (idx: number, field: keyof QuestionForm, value: string | string[] | number) => {
     setQuestions((prev) => {
       const copy = [...prev];
       copy[idx] = { ...copy[idx], [field]: value };
+      return copy;
+    });
+  };
+
+  const updateChoice = (qIdx: number, cIdx: number, value: string) => {
+    setQuestions((prev) => {
+      const copy = [...prev];
+      const choices = [...copy[qIdx].choices];
+      choices[cIdx] = value;
+      copy[qIdx] = { ...copy[qIdx], choices };
+      return copy;
+    });
+  };
+
+  const addChoice = (qIdx: number) => {
+    setQuestions((prev) => {
+      const copy = [...prev];
+      copy[qIdx] = { ...copy[qIdx], choices: [...copy[qIdx].choices, ""] };
+      return copy;
+    });
+  };
+
+  const removeChoice = (qIdx: number, cIdx: number) => {
+    setQuestions((prev) => {
+      const copy = [...prev];
+      const choices = copy[qIdx].choices.filter((_, i) => i !== cIdx);
+      let correctIndex = copy[qIdx].correctIndex;
+      if (cIdx === correctIndex) correctIndex = 0;
+      else if (cIdx < correctIndex) correctIndex -= 1;
+      copy[qIdx] = { ...copy[qIdx], choices, correctIndex };
       return copy;
     });
   };
@@ -104,10 +141,23 @@ export default function CreateQuizPage() {
         toast(`Question ${i + 1} text is required`, "error");
         return;
       }
-      const validAnswers = q.acceptedAnswers.filter((a) => a.trim());
-      if (validAnswers.length === 0) {
-        toast(`Question ${i + 1} needs at least one answer`, "error");
-        return;
+      if (q.answerType === "mcq") {
+        const validChoices = q.choices.filter((c) => c.trim());
+        if (validChoices.length < 2) {
+          toast(`Question ${i + 1} needs at least 2 choices`, "error");
+          return;
+        }
+        const correct = q.choices[q.correctIndex]?.trim();
+        if (!correct) {
+          toast(`Question ${i + 1}: pick a correct choice`, "error");
+          return;
+        }
+      } else {
+        const validAnswers = q.acceptedAnswers.filter((a) => a.trim());
+        if (validAnswers.length === 0) {
+          toast(`Question ${i + 1} needs at least one answer`, "error");
+          return;
+        }
       }
     }
 
@@ -126,12 +176,28 @@ export default function CreateQuizPage() {
           startDateTime: isPrerequisite ? now.toISOString() : startDateTime,
           endDateTime: isPrerequisite ? farFuture.toISOString() : endDateTime,
           questionCount,
+          secondsPerQuestion,
           isPrerequisite,
-          questions: questions.map((q) => ({
-            questionText: q.questionText,
-            answerType: q.answerType,
-            acceptedAnswers: q.acceptedAnswers.filter((a) => a.trim()),
-          })),
+          questions: questions.map((q) => {
+            if (q.answerType === "mcq") {
+              const choices = q.choices.map((c) => c.trim()).filter((c) => c);
+              const correct = q.choices[q.correctIndex]?.trim() || "";
+              return {
+                questionText: q.questionText,
+                answerType: q.answerType,
+                acceptedAnswers: [correct],
+                choices,
+                maxAnswerLength: null,
+              };
+            }
+            return {
+              questionText: q.questionText,
+              answerType: q.answerType,
+              acceptedAnswers: q.acceptedAnswers.filter((a) => a.trim()),
+              choices: [],
+              maxAnswerLength: q.maxAnswerLength.trim() === "" ? null : Number(q.maxAnswerLength),
+            };
+          }),
         }),
       });
 
@@ -216,6 +282,19 @@ export default function CreateQuizPage() {
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Seconds per Question
+              </label>
+              <input
+                type="number"
+                value={secondsPerQuestion}
+                onChange={(e) => setSecondsPerQuestion(Math.max(1, parseInt(e.target.value) || 1))}
+                min={1}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:border-blue-500 focus:outline-none"
+              />
+              <p className="text-xs text-slate-400 mt-1">How long users get per question. Default 120.</p>
+            </div>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -272,59 +351,104 @@ export default function CreateQuizPage() {
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-blue-500 focus:outline-none text-sm"
                 />
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => updateQuestion(qIdx, "answerType", "text")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      q.answerType === "text"
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-100 dark:bg-slate-700"
-                    }`}
-                  >
-                    Text
-                  </button>
-                  <button
-                    onClick={() => updateQuestion(qIdx, "answerType", "number")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      q.answerType === "number"
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-100 dark:bg-slate-700"
-                    }`}
-                  >
-                    Number
-                  </button>
+                <div className="flex gap-2 items-center flex-wrap">
+                  {(["mcq", "text", "number"] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => updateQuestion(qIdx, "answerType", t)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                        q.answerType === t
+                          ? "bg-blue-600 text-white"
+                          : "bg-slate-100 dark:bg-slate-700"
+                      }`}
+                    >
+                      {t === "mcq" ? "MCQ" : t === "text" ? "Text" : "Number"}
+                    </button>
+                  ))}
+                  {q.answerType !== "mcq" && (
+                    <label className="ml-auto flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                      Max length
+                      <input
+                        type="number"
+                        min={1}
+                        value={q.maxAnswerLength}
+                        onChange={(e) => updateQuestion(qIdx, "maxAnswerLength", e.target.value)}
+                        className="w-20 px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </label>
+                  )}
                 </div>
 
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    Accepted Answers
-                  </p>
-                  {q.acceptedAnswers.map((ans, aIdx) => (
-                    <div key={aIdx} className="flex gap-2">
-                      <input
-                        type={q.answerType === "number" ? "number" : "text"}
-                        value={ans}
-                        onChange={(e) => updateAnswer(qIdx, aIdx, e.target.value)}
-                        placeholder={`Answer ${aIdx + 1}`}
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                      {q.acceptedAnswers.length > 1 && (
-                        <button
-                          onClick={() => removeAnswer(qIdx, aIdx)}
-                          className="text-red-500 hover:text-red-700 text-sm px-2"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => addAnswer(qIdx)}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    + Add another accepted answer
-                  </button>
-                </div>
+                {q.answerType === "mcq" ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Choices (pick the correct one)
+                    </p>
+                    {q.choices.map((choice, cIdx) => (
+                      <div key={cIdx} className="flex gap-2 items-center">
+                        <input
+                          type="radio"
+                          name={`correct-${qIdx}`}
+                          checked={q.correctIndex === cIdx}
+                          onChange={() => updateQuestion(qIdx, "correctIndex", cIdx)}
+                          className="w-4 h-4"
+                        />
+                        <input
+                          type="text"
+                          value={choice}
+                          onChange={(e) => updateChoice(qIdx, cIdx, e.target.value)}
+                          placeholder={`Choice ${cIdx + 1}`}
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                        {q.choices.length > 2 && (
+                          <button
+                            onClick={() => removeChoice(qIdx, cIdx)}
+                            className="text-red-500 hover:text-red-700 text-sm px-2"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => addChoice(qIdx)}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      + Add choice
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                      Accepted Answers
+                    </p>
+                    {q.acceptedAnswers.map((ans, aIdx) => (
+                      <div key={aIdx} className="flex gap-2">
+                        <input
+                          type={q.answerType === "number" ? "number" : "text"}
+                          value={ans}
+                          onChange={(e) => updateAnswer(qIdx, aIdx, e.target.value)}
+                          placeholder={`Answer ${aIdx + 1}`}
+                          className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 focus:outline-none"
+                        />
+                        {q.acceptedAnswers.length > 1 && (
+                          <button
+                            onClick={() => removeAnswer(qIdx, aIdx)}
+                            className="text-red-500 hover:text-red-700 text-sm px-2"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => addAnswer(qIdx)}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      + Add another accepted answer
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
 

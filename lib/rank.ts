@@ -26,14 +26,14 @@ export async function getOverallRank(
   });
   const aggregates = await getUsersAggregates(users.map((u) => u.id));
 
-  let higher = 0;
+  const higherScores = new Set<number>();
   let same = 0;
   for (const agg of aggregates.values()) {
-    if (agg.totalScore > score) higher++;
+    if (agg.totalScore > score) higherScores.add(agg.totalScore);
     else if (agg.totalScore === score) same++;
   }
 
-  const rank = hasScore ? higher + 1 : 0;
+  const rank = hasScore ? higherScores.size + 1 : 0;
   const tiedCount = hasScore ? Math.max(0, same - 1) : 0;
   return { rank, tiedCount, totalMembers: users.length };
 }
@@ -53,8 +53,9 @@ export async function getQuizRank(
   score: number,
   hasAttempt: boolean
 ): Promise<QuizRank> {
-  const [higher, same, totalAttempts] = await Promise.all([
-    prisma.attempt.count({
+  const [higherDistinct, same, totalAttempts] = await Promise.all([
+    prisma.attempt.groupBy({
+      by: ["rawScore"],
       where: {
         quizId,
         isComplete: true,
@@ -75,7 +76,7 @@ export async function getQuizRank(
     }),
   ]);
 
-  const rank = hasAttempt ? higher + 1 : 0;
+  const rank = hasAttempt ? higherDistinct.length + 1 : 0;
   const tiedCount = hasAttempt ? Math.max(0, same - 1) : 0;
   return { rank, tiedCount, totalAttempts };
 }

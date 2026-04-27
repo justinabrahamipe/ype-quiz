@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { title, biblePortion, startDateTime, endDateTime, questionCount, questions, isPrerequisite } = body;
+  const { title, biblePortion, startDateTime, endDateTime, questionCount, questions, isPrerequisite, secondsPerQuestion } = body;
 
   if (!title || !biblePortion || !startDateTime || !endDateTime || !questionCount || !questions?.length) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -23,6 +23,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
   }
 
+  const normalizedSeconds =
+    secondsPerQuestion != null && Number.isFinite(secondsPerQuestion) && secondsPerQuestion > 0
+      ? Math.floor(secondsPerQuestion)
+      : 120;
+
   const quiz = await prisma.quiz.create({
     data: {
       title,
@@ -30,6 +35,7 @@ export async function POST(req: NextRequest) {
       startTime: start,
       endTime: end,
       questionCount,
+      secondsPerQuestion: normalizedSeconds,
       isPrerequisite: !!isPrerequisite,
       createdBy: session.user.id,
       questions: {
@@ -39,13 +45,20 @@ export async function POST(req: NextRequest) {
               questionText: string;
               answerType: string;
               acceptedAnswers: string[];
+              choices?: string[];
+              maxAnswerLength?: number | null;
             },
             i: number
           ) => ({
             questionText: q.questionText,
             answerType: q.answerType as AnswerType,
             acceptedAnswers: q.acceptedAnswers,
+            choices: Array.isArray(q.choices) ? q.choices.filter((c) => c.trim()) : [],
             orderIndex: i,
+            maxAnswerLength:
+              q.maxAnswerLength != null && Number.isFinite(q.maxAnswerLength) && q.maxAnswerLength > 0
+                ? Math.floor(q.maxAnswerLength)
+                : null,
           })
         ),
       },

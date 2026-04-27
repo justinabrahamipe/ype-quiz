@@ -4,6 +4,8 @@ import { readPublicImageAsDataUri } from "@/lib/og-helpers";
 import { getUsersAggregates } from "@/lib/aggregate-score";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const contentType = "image/png";
 export const alt = "YPE Bible Quiz Leaderboard";
 export const size = { width: 1080, height: 1350 };

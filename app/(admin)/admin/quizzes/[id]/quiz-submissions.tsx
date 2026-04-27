@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/toaster";
 import Box from "@mui/material/Box";
-import Card from "@mui/material/Card";
 import Typography from "@mui/material/Typography";
 import Avatar from "@mui/material/Avatar";
 import Chip from "@mui/material/Chip";
@@ -12,6 +11,9 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Divider from "@mui/material/Divider";
 import Collapse from "@mui/material/Collapse";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
@@ -49,15 +51,20 @@ type Question = {
 };
 
 export function QuizSubmissions({
-  quizId,
   submissions,
   questions,
   canDelete = false,
+  title = "Submissions",
+  defaultExpanded = true,
+  emptyMessage = "None yet.",
 }: {
-  quizId: string;
+  quizId?: string;
   submissions: Submission[];
   questions: Question[];
   canDelete?: boolean;
+  title?: string;
+  defaultExpanded?: boolean;
+  emptyMessage?: string;
 }) {
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -94,14 +101,21 @@ export function QuizSubmissions({
     }
   };
 
-  if (submissions.length === 0) return null;
-
   return (
-    <section>
-      <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-        Submissions ({submissions.length})
-      </Typography>
-      <Card elevation={0}>
+    <Accordion defaultExpanded={defaultExpanded} disableGutters elevation={0} sx={{ border: "1px solid", borderColor: "divider", "&:before": { display: "none" } }}>
+      <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
+        <Typography variant="h6" fontWeight={600}>
+          {title} ({submissions.length})
+        </Typography>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 0 }}>
+        {submissions.length === 0 ? (
+          <Box sx={{ px: 2.5, py: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              {emptyMessage}
+            </Typography>
+          </Box>
+        ) : null}
         {submissions.map((sub, i) => {
           const isExpanded = expandedId === sub.attemptId;
           const total = sub.rawScore;
@@ -237,7 +251,7 @@ export function QuizSubmissions({
             </Box>
           );
         })}
-      </Card>
+      </AccordionDetails>
 
       <Dialog open={!!deleteTarget} onClose={() => !deleting && setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Remove submission?</DialogTitle>
@@ -258,6 +272,6 @@ export function QuizSubmissions({
           </Button>
         </DialogActions>
       </Dialog>
-    </section>
+    </Accordion>
   );
 }

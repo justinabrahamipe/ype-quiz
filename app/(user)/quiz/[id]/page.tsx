@@ -9,13 +9,17 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import Button from "@mui/material/Button";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import { toast } from "@/components/toaster";
+import { Header } from "@/components/header";
 
 type Question = {
   id: string;
   questionText: string;
-  answerType: "text" | "number";
+  answerType: "text" | "number" | "mcq";
   orderIndex: number;
+  maxAnswerLength: number | null;
+  choices: string[];
 };
 
 type ExistingAnswer = {
@@ -25,14 +29,37 @@ type ExistingAnswer = {
   timeTakenSeconds: number | null;
 };
 
+type QuizInfo = {
+  quiz: {
+    title: string;
+    biblePortion: string;
+    questionCount: number;
+    isPrerequisite: boolean;
+    startTime: string;
+    endTime: string;
+    secondsPerQuestion: number;
+  };
+  status: "upcoming" | "active" | "ended";
+  userApproved: boolean;
+  userQualified: boolean;
+  hasInProgress: boolean;
+  hasCompleted: boolean;
+};
+
 export default function QuizAttemptPage() {
   const { id: quizId } = useParams<{ id: string }>();
   const router = useRouter();
+
+  const [info, setInfo] = useState<QuizInfo | null>(null);
+  const [infoError, setInfoError] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
+  const [startingAttempt, setStartingAttempt] = useState(false);
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [attemptId, setAttemptId] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answer, setAnswer] = useState("");
+  const [secondsPerQuestion, setSecondsPerQuestion] = useState(120);
   const [timeLeft, setTimeLeft] = useState(120);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -56,8 +83,44 @@ export default function QuizAttemptPage() {
     timeSpentRef.current = timeSpent;
   }, [timeSpent]);
 
-  // Start the quiz
+  // Fetch quiz info on mount (for the intro screen)
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchInfo = async (retries = 2) => {
+      try {
+        const r = await fetch(`/api/quiz/${quizId}/info`);
+        if (!r.ok) {
+          if (r.status === 401 && retries > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            if (!cancelled) return fetchInfo(retries - 1);
+            return;
+          }
+          const err = await r.json().catch(() => ({ error: "Quiz not found" }));
+          if (!cancelled) setInfoError(err.error || "Quiz not found");
+          return;
+        }
+        const data: QuizInfo = await r.json();
+        if (!cancelled) setInfo(data);
+      } catch {
+        if (!cancelled) {
+          if (retries > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            if (!cancelled) return fetchInfo(retries - 1);
+          } else {
+            setInfoError("Failed to load quiz");
+          }
+        }
+      }
+    };
+
+    fetchInfo();
+    return () => { cancelled = true; };
+  }, [quizId]);
+
+  // Start the quiz (only fires when the user clicks the button on the intro)
+  useEffect(() => {
+    if (!started) return;
     let cancelled = false;
 
     const startQuiz = async (retries = 2) => {
@@ -65,7 +128,6 @@ export default function QuizAttemptPage() {
         const r = await fetch(`/api/quiz/${quizId}/start`, { method: "POST" });
         if (!r.ok) {
           if (r.status === 401 && retries > 0) {
-            // Session not ready yet — retry after short delay
             await new Promise((resolve) => setTimeout(resolve, 1000));
             if (!cancelled) return startQuiz(retries - 1);
             return;
@@ -82,6 +144,9 @@ export default function QuizAttemptPage() {
           setQuestions(data.questions);
           setAttemptId(data.attemptId);
           setCurrentIndex(data.nextQuestionIndex);
+          if (typeof data.secondsPerQuestion === "number" && data.secondsPerQuestion > 0) {
+            setSecondsPerQuestion(data.secondsPerQuestion);
+          }
           setExistingAnswers(
             new Map(data.existingAnswers.map((a: ExistingAnswer) => [a.questionId, a.submittedText || ""]))
           );
@@ -91,6 +156,7 @@ export default function QuizAttemptPage() {
               .map((a: ExistingAnswer) => [a.questionId, a.timeTakenSeconds as number]))
           );
           setLoading(false);
+          setStartingAttempt(false);
         }
       } catch {
         if (!cancelled) {
@@ -107,7 +173,7 @@ export default function QuizAttemptPage() {
 
     startQuiz();
     return () => { cancelled = true; };
-  }, [quizId, router]);
+  }, [quizId, router, started]);
 
   // Initialize the question whenever the user navigates to a new one.
   // Reads existingAnswers/timeSpent via ref so this effect does NOT re-run on
@@ -123,13 +189,13 @@ export default function QuizAttemptPage() {
     if (prior !== undefined) {
       setAnswer(prior);
       const spent = timeSpentRef.current.get(q.id) || 0;
-      setTimeLeft(Math.max(0, 120 - spent));
+      setTimeLeft(Math.max(0, secondsPerQuestion - spent));
     } else {
       setAnswer("");
-      setTimeLeft(120);
+      setTimeLeft(secondsPerQuestion);
       // Lock the question the moment it's shown: if the user leaves without
       // answering, the question is marked attempted server-side so they can't
-      // see it (and its fresh 120s timer) again.
+      // see it (and its fresh timer) again.
       if (!lockedRef.current.has(q.id)) {
         lockedRef.current.add(q.id);
         fetch(`/api/quiz/${quizId}/answer`, {
@@ -154,7 +220,7 @@ export default function QuizAttemptPage() {
           });
       }
     }
-  }, [currentIndex, loading, questions, quizId]);
+  }, [currentIndex, loading, questions, quizId, secondsPerQuestion]);
 
   // Warn before leaving — browser close/refresh
   useEffect(() => {
@@ -196,7 +262,7 @@ export default function QuizAttemptPage() {
         if (prev <= 1) {
           // Auto-submit and advance
           handleSubmitAnswer(true);
-          return 120;
+          return secondsPerQuestion;
         }
         return prev - 1;
       });
@@ -306,6 +372,124 @@ export default function QuizAttemptPage() {
     }
   };
 
+  if (!started) {
+    if (infoError) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Header />
+          <main className="max-w-lg mx-auto px-4 py-10 text-center space-y-4">
+            <p className="text-slate-700 dark:text-slate-200">{infoError}</p>
+            <button
+              onClick={() => router.push("/quizzes")}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
+            >
+              <ArrowBackRoundedIcon sx={{ fontSize: 18 }} />
+              Back to quizzes
+            </button>
+          </main>
+        </div>
+      );
+    }
+
+    if (!info) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Header />
+          <main className="flex items-center justify-center py-20">
+            <div className="animate-pulse text-slate-500">Loading quiz...</div>
+          </main>
+        </div>
+      );
+    }
+
+    const { quiz, status, userApproved, userQualified, hasInProgress, hasCompleted } = info;
+    const perQuestion = quiz.secondsPerQuestion || 120;
+    const totalSeconds = quiz.questionCount * perQuestion;
+    const totalMinutes = Math.ceil(totalSeconds / 60);
+    const perQuestionLabel =
+      perQuestion >= 60 && perQuestion % 60 === 0
+        ? `${perQuestion / 60} min`
+        : perQuestion >= 60
+        ? `${Math.floor(perQuestion / 60)}m ${perQuestion % 60}s`
+        : `${perQuestion}s`;
+
+    let blockMessage: string | null = null;
+    if (hasCompleted) blockMessage = "You've already submitted this quiz.";
+    else if (!userApproved) blockMessage = "Your account is pending approval.";
+    else if (!quiz.isPrerequisite && !userQualified) blockMessage = "Pass the qualifying quiz first to unlock this one.";
+    else if (status === "upcoming") blockMessage = `This quiz opens at ${new Date(quiz.startTime).toLocaleString()}.`;
+    else if (status === "ended") blockMessage = "This quiz has ended.";
+
+    const canStart = blockMessage === null;
+    const buttonLabel = hasInProgress ? "Resume Quiz" : "Start Quiz";
+
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="max-w-lg mx-auto px-4 py-8 space-y-5">
+          <button
+            onClick={() => router.push("/quizzes")}
+            className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+          >
+            <ArrowBackRoundedIcon sx={{ fontSize: 18 }} />
+            Back to quizzes
+          </button>
+
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 space-y-5">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                {quiz.isPrerequisite ? "Qualifying Quiz" : "Bible Quiz"}
+              </p>
+              <h1 className="text-2xl font-bold">{quiz.title}</h1>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{quiz.biblePortion}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Questions</p>
+                <p className="text-lg font-semibold mt-0.5">{quiz.questionCount}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Time per question</p>
+                <p className="text-lg font-semibold mt-0.5">{perQuestionLabel}</p>
+              </div>
+            </div>
+
+            <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-1.5 list-disc pl-5">
+              <li>You have {perQuestionLabel} per question. Once time runs out, the next question loads automatically.</li>
+              <li>You can&apos;t go back to a previous question.</li>
+              <li>Plan for about {totalMinutes} minute{totalMinutes === 1 ? "" : "s"} of focused time.</li>
+            </ul>
+
+            {blockMessage && (
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+                {blockMessage}
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                if (!canStart) return;
+                setStartingAttempt(true);
+                setStarted(true);
+              }}
+              disabled={!canStart || startingAttempt}
+              className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {startingAttempt && (
+                <span
+                  aria-hidden
+                  className="inline-block w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"
+                />
+              )}
+              <span>{startingAttempt ? "Starting..." : buttonLabel}</span>
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -374,33 +558,58 @@ export default function QuizAttemptPage() {
             if (!submitting && !advancing) handleNext();
           }}
         >
-          <input
-            key={currentQuestion.id}
-            type="text"
-            inputMode={currentQuestion.answerType === "number" ? "numeric" : "text"}
-            pattern={currentQuestion.answerType === "number" ? "[0-9]*" : undefined}
-            enterKeyHint={isLast ? "done" : "next"}
-            value={answer}
-            onChange={(e) => handleInputChange(e.target.value)}
-            placeholder="Type your answer here..."
-            autoFocus
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            autoComplete="off"
-            name="quiz-answer"
-            className="w-full px-4 py-4 text-lg rounded-xl bg-white dark:bg-slate-800 border-2 border-blue-300 dark:border-blue-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors"
-          />
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-            {currentQuestion.answerType === "number"
-              ? "Enter a number (exact)"
-              : "Single word answer"}
-            <span className="hidden sm:inline"> · press Enter to continue</span>
-          </p>
+          {currentQuestion.answerType === "mcq" ? (
+            <div className="space-y-2">
+              {currentQuestion.choices.map((choice) => {
+                const selected = answer === choice;
+                return (
+                  <button
+                    key={choice}
+                    type="button"
+                    onClick={() => handleInputChange(choice)}
+                    className={`w-full text-left px-4 py-3.5 rounded-xl border-2 text-base transition-colors ${
+                      selected
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 font-semibold"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-600"
+                    }`}
+                  >
+                    {choice}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <input
+              key={currentQuestion.id}
+              type="text"
+              inputMode={currentQuestion.answerType === "number" ? "numeric" : "text"}
+              pattern={currentQuestion.answerType === "number" ? "[0-9]*" : undefined}
+              enterKeyHint={isLast ? "done" : "next"}
+              value={answer}
+              onChange={(e) => handleInputChange(e.target.value)}
+              placeholder="Type your answer here..."
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="off"
+              name="quiz-answer"
+              maxLength={currentQuestion.maxAnswerLength ?? undefined}
+              className="w-full px-4 py-4 text-lg rounded-xl bg-white dark:bg-slate-800 border-2 border-blue-300 dark:border-blue-600 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition-colors"
+            />
+          )}
+          {currentQuestion.answerType !== "mcq" && (
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+              {currentQuestion.answerType === "number" && "Enter a number (exact)"}
+              <span className="hidden sm:inline">
+                {currentQuestion.answerType === "number" ? " · " : ""}press Enter to continue
+              </span>
+            </p>
+          )}
 
           <button
             type="submit"
-            disabled={submitting || advancing}
+            disabled={submitting || advancing || (currentQuestion.answerType === "mcq" && !answer)}
             className="mt-4 w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {(submitting || advancing) && (

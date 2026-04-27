@@ -58,12 +58,12 @@ export default async function MembersPage() {
     })
     .sort((a, b) => b.score - a.score);
 
-  // Competition ranking: tied scores share a rank, the next rank skips
-  // accordingly (1, 2, 2, 4 …).
+  // Dense ranking: tied scores share a rank, next distinct score gets the
+  // next integer (1, 2, 2, 3 …).
   let lastScore: number | null = null;
   let lastRank = 0;
-  const members = sorted.map((m, i) => {
-    const rank = m.score === lastScore ? lastRank : i + 1;
+  const members = sorted.map((m) => {
+    const rank = m.score === lastScore ? lastRank : lastRank + 1;
     lastScore = m.score;
     lastRank = rank;
     return { ...m, rank };

@@ -25,12 +25,11 @@ export default async function EditQuizPage({
     include: {
       questions: { orderBy: { orderIndex: "asc" } },
       attempts: {
-        where: { isComplete: true, archivedAt: null },
         include: {
           user: { select: { id: true, name: true, email: true, image: true } },
           answers: { select: { id: true, submittedText: true, isCorrect: true, questionId: true } },
         },
-        orderBy: { completedAt: "asc" },
+        orderBy: { startedAt: "asc" },
       },
     },
   });
@@ -39,6 +38,33 @@ export default async function EditQuizPage({
 
   const now = new Date();
   const isEditable = now < quiz.startTime;
+
+  const submissions = quiz.attempts.filter((a) => a.isComplete && !a.archivedAt);
+  const inProgress = quiz.attempts.filter((a) => !a.isComplete && !a.archivedAt);
+  const archived = quiz.attempts.filter((a) => !!a.archivedAt);
+
+  const toSubmissionShape = (a: (typeof quiz.attempts)[number]) => ({
+    attemptId: a.id,
+    userId: a.user.id,
+    userName: a.user.name || "",
+    userEmail: a.user.email,
+    userImage: a.user.image,
+    completedAt: a.completedAt?.toISOString() || "",
+    rawScore: Number(a.rawScore ?? 0),
+    answers: a.answers.map((ans) => ({
+      id: ans.id,
+      submittedText: ans.submittedText,
+      isCorrect: ans.isCorrect,
+      questionId: ans.questionId,
+    })),
+  });
+
+  const questionProps = quiz.questions.map((q) => ({
+    id: q.id,
+    questionText: q.questionText,
+    acceptedAnswers: q.acceptedAnswers,
+    orderIndex: q.orderIndex,
+  }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,17 +108,17 @@ export default async function EditQuizPage({
           </div>
           <div className="p-3 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             <p className="text-xs text-slate-500 dark:text-slate-400">Submissions</p>
-            <p className="text-sm font-medium mt-1">{quiz.attempts.length}</p>
+            <p className="text-sm font-medium mt-1">{submissions.length}</p>
           </div>
         </div>
 
-        {!quiz.isPrerequisite && (
-          <EditTimes
-            quizId={quizId}
-            startTime={quiz.startTime.toISOString()}
-            endTime={quiz.endTime.toISOString()}
-          />
-        )}
+        <EditTimes
+          quizId={quizId}
+          startTime={quiz.startTime.toISOString()}
+          endTime={quiz.endTime.toISOString()}
+          secondsPerQuestion={quiz.secondsPerQuestion}
+          isPrerequisite={quiz.isPrerequisite}
+        />
 
         {/* Questions - inline editable */}
         <QuizQuestions
@@ -102,36 +128,43 @@ export default async function EditQuizPage({
             questionText: q.questionText,
             answerType: q.answerType,
             acceptedAnswers: q.acceptedAnswers,
+            choices: q.choices,
             orderIndex: q.orderIndex,
+            maxAnswerLength: q.maxAnswerLength,
           }))}
         />
 
         {/* Submissions - expandable with answer editing */}
-        <QuizSubmissions
-          quizId={quizId}
-          canDelete={session.user.role === "admin"}
-          submissions={quiz.attempts.map((a) => ({
-            attemptId: a.id,
-            userId: a.user.id,
-            userName: a.user.name || "",
-            userEmail: a.user.email,
-            userImage: a.user.image,
-            completedAt: a.completedAt?.toISOString() || "",
-            rawScore: Number(a.rawScore ?? 0),
-            answers: a.answers.map((ans) => ({
-              id: ans.id,
-              submittedText: ans.submittedText,
-              isCorrect: ans.isCorrect,
-              questionId: ans.questionId,
-            })),
-          }))}
-          questions={quiz.questions.map((q) => ({
-            id: q.id,
-            questionText: q.questionText,
-            acceptedAnswers: q.acceptedAnswers,
-            orderIndex: q.orderIndex,
-          }))}
-        />
+        <div className="space-y-3">
+          <QuizSubmissions
+            quizId={quizId}
+            canDelete={session.user.role === "admin"}
+            submissions={submissions.map(toSubmissionShape)}
+            questions={questionProps}
+            title="Submissions"
+            defaultExpanded
+            emptyMessage="No completed submissions yet."
+          />
+
+          <QuizSubmissions
+            quizId={quizId}
+            canDelete={session.user.role === "admin"}
+            submissions={inProgress.map(toSubmissionShape)}
+            questions={questionProps}
+            title="In-Progress Attempts"
+            defaultExpanded={false}
+            emptyMessage="No in-progress attempts."
+          />
+
+          <QuizSubmissions
+            quizId={quizId}
+            submissions={archived.map(toSubmissionShape)}
+            questions={questionProps}
+            title="Archived"
+            defaultExpanded={false}
+            emptyMessage="No archived attempts."
+          />
+        </div>
 
         {session.user.email === SUPER_ADMIN_EMAIL && (
           <DeleteQuiz quizId={quizId} quizTitle={quiz.title} />

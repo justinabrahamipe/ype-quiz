@@ -77,14 +77,15 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
     .join("\n");
 
   // Only show the 3-tier podium when 1st / 2nd / 3rd are clearly distinct.
-  // If any of the top three are tied, skip the podium and let the list below
-  // show the shared ranks instead.
+  // If any of the top three are tied (including a 4th member sharing 3rd),
+  // skip the podium and let the list below show the shared ranks instead.
   const showPodium =
     members.length >= 3 &&
     members[0].score > 0 &&
     members[0].rank === 1 &&
     members[1].rank === 2 &&
-    members[2].rank === 3;
+    members[2].rank === 3 &&
+    (members.length === 3 || members[3].rank > 3);
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
@@ -321,7 +322,7 @@ export function MembersContent({ members, currentUserId }: { members: Member[]; 
                         {isCurrentUser && <Chip label="you" size="small" color="primary" sx={{ height: 18, fontSize: "0.6rem" }} />}
                       </Box>
                       <Box sx={{ display: "flex", gap: 1.5 }}>
-                        <Typography variant="caption" color="text.secondary">{member.quizzesAttempted} quizzes</Typography>
+                        <Typography variant="caption" color="text.secondary">{member.quizzesAttempted} {member.quizzesAttempted === 1 ? "quiz" : "quizzes"}</Typography>
                         {member.quizzesMissed > 0 && (
                           <Typography variant="caption" color="error">{member.quizzesMissed} missed</Typography>
                         )}

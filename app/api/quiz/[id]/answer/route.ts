@@ -37,6 +37,16 @@ export async function POST(
   const startedAt = new Date(question_started_at);
   const timeTaken = Math.floor((now.getTime() - startedAt.getTime()) / 1000);
 
+  // Enforce the question's max answer length server-side as defense in depth.
+  const question = await prisma.question.findUnique({
+    where: { id: question_id },
+    select: { maxAnswerLength: true },
+  });
+  let capped: string | null = submitted_text || null;
+  if (capped && question?.maxAnswerLength && capped.length > question.maxAnswerLength) {
+    capped = capped.slice(0, question.maxAnswerLength);
+  }
+
   // Upsert answer
   const existingAnswer = await prisma.answer.findFirst({
     where: { attemptId: attempt.id, questionId: question_id },
@@ -46,9 +56,9 @@ export async function POST(
     await prisma.answer.update({
       where: { id: existingAnswer.id },
       data: {
-        submittedText: submitted_text || null,
+        submittedText: capped,
         answeredAt: now,
-        timeTakenSeconds: Math.min(timeTaken, 120),
+        timeTakenSeconds: Math.min(timeTaken, quiz.secondsPerQuestion),
       },
     });
   } else {
@@ -56,9 +66,9 @@ export async function POST(
       data: {
         attemptId: attempt.id,
         questionId: question_id,
-        submittedText: submitted_text || null,
+        submittedText: capped,
         answeredAt: now,
-        timeTakenSeconds: Math.min(timeTaken, 120),
+        timeTakenSeconds: Math.min(timeTaken, quiz.secondsPerQuestion),
       },
     });
   }

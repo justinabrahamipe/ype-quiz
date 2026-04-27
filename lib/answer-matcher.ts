@@ -16,12 +16,17 @@ function levenshteinSimilarity(a: string, b: string): number {
 export function isCorrect(
   submitted: string,
   acceptedAnswers: string[],
-  type: "text" | "number"
+  type: "text" | "number" | "mcq"
 ): boolean {
   if (!submitted || submitted.trim() === "") return false;
 
   if (type === "number") {
     return acceptedAnswers.some((a) => submitted.trim() === a.trim());
+  }
+
+  if (type === "mcq") {
+    const normSubmitted = normalise(submitted);
+    return acceptedAnswers.some((a) => normalise(a) === normSubmitted);
   }
 
   const normSubmitted = normalise(submitted);

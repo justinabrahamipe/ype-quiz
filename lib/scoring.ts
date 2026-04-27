@@ -25,15 +25,24 @@ export async function backfillAttemptScores(userId: string) {
           question.acceptedAnswers,
           question.answerType as "text" | "number"
         );
-        if (ok) correct++;
         for (const ans of userAnswers) {
+          if (ans.manuallyOverridden) {
+            if (ans.id === userAnswer.id && ans.isCorrect) correct++;
+            continue;
+          }
+          const newIsCorrect = ans.id === userAnswer.id ? ok : false;
           await prisma.answer.update({
             where: { id: ans.id },
-            data: { isCorrect: ans.id === userAnswer.id ? ok : false },
+            data: { isCorrect: newIsCorrect },
           });
+          if (newIsCorrect) correct++;
         }
       } else {
         for (const ans of userAnswers) {
+          if (ans.manuallyOverridden) {
+            if (ans.isCorrect) correct++;
+            continue;
+          }
           await prisma.answer.update({
             where: { id: ans.id },
             data: { isCorrect: false },
@@ -71,6 +80,11 @@ export async function processQuizResults(quizId: string) {
     let correctCount = 0;
 
     for (const ans of attempt.answers) {
+      if (ans.manuallyOverridden) {
+        if (ans.isCorrect) correctCount++;
+        continue;
+      }
+
       const question = quizQuestions.find((q) => q.id === ans.questionId);
       if (!question || !ans.submittedText) {
         await prisma.answer.update({
