@@ -302,13 +302,20 @@ export default function QuizAttemptPage() {
     [quizId, currentIndex, questions]
   );
 
-  // Debounced save on keystroke
+  // Debounced save on keystroke (text/number questions)
   const handleInputChange = (text: string) => {
     setAnswer(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       saveAnswer(text, true);
     }, 500);
+  };
+
+  // MCQ pick: instant save, no debounce. Next button enables immediately.
+  const handleMcqPick = (choice: string) => {
+    setAnswer(choice);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    saveAnswer(choice, true);
   };
 
   const handleSubmitAnswer = async (autoAdvance: boolean) => {
@@ -582,7 +589,7 @@ export default function QuizAttemptPage() {
                   <button
                     key={choice}
                     type="button"
-                    onClick={() => handleInputChange(choice)}
+                    onClick={() => handleMcqPick(choice)}
                     className={`w-full text-left px-4 py-3.5 rounded-xl border-2 text-base transition-colors ${
                       selected
                         ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 font-semibold"
