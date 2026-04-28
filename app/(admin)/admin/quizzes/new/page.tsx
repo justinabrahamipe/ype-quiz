@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/components/header";
 import { toast } from "@/components/toaster";
@@ -12,6 +12,35 @@ type QuestionForm = {
   choices: string[];
   correctIndex: number;
   maxAnswerLength: string;
+};
+
+const SAMPLE_QUIZ_JSON = {
+  title: "Sample Quiz: Genesis 1-3",
+  biblePortion: "Book of Genesis, Chapters 1 to 3",
+  startDateTime: "2026-05-01T10:00",
+  endDateTime: "2026-05-01T22:00",
+  secondsPerQuestion: 120,
+  isPrerequisite: false,
+  questions: [
+    {
+      questionText: "Who was the first man God created?",
+      answerType: "mcq",
+      choices: ["Adam", "Noah", "Abraham", "Moses"],
+      correctIndex: 0,
+    },
+    {
+      questionText: "How many days did God take to create the world?",
+      answerType: "number",
+      acceptedAnswers: ["6"],
+      maxAnswerLength: 2,
+    },
+    {
+      questionText: "What was the name of Adam's wife?",
+      answerType: "text",
+      acceptedAnswers: ["Eve"],
+      maxAnswerLength: 10,
+    },
+  ],
 };
 
 export default function CreateQuizPage() {
@@ -26,6 +55,143 @@ export default function CreateQuizPage() {
   const [isPrerequisite, setIsPrerequisite] = useState(false);
   const [questions, setQuestions] = useState<QuestionForm[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const downloadSample = () => {
+    const blob = new Blob([JSON.stringify(SAMPLE_QUIZ_JSON, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "quiz-sample.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      toast("Invalid JSON file", "error");
+      return;
+    }
+    if (!parsed || typeof parsed !== "object") {
+      toast("JSON must be an object", "error");
+      return;
+    }
+    const data = parsed as Record<string, unknown>;
+    const rawQuestions = data.questions;
+    if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
+      toast("JSON must include a non-empty questions array", "error");
+      return;
+    }
+    if (typeof data.title !== "string" || !data.title.trim()) {
+      toast("title is required", "error");
+      return;
+    }
+    if (typeof data.biblePortion !== "string" || !data.biblePortion.trim()) {
+      toast("biblePortion is required", "error");
+      return;
+    }
+
+    const isPrereq = !!data.isPrerequisite;
+    if (!isPrereq) {
+      if (typeof data.startDateTime !== "string" || typeof data.endDateTime !== "string") {
+        toast("startDateTime and endDateTime are required (or set isPrerequisite: true)", "error");
+        return;
+      }
+      if (new Date(data.endDateTime) <= new Date(data.startDateTime)) {
+        toast("endDateTime must be after startDateTime", "error");
+        return;
+      }
+    }
+
+    const importedQuestions: QuestionForm[] = [];
+    for (let i = 0; i < rawQuestions.length; i++) {
+      const q = rawQuestions[i] as Record<string, unknown>;
+      if (!q || typeof q.questionText !== "string" || !q.questionText.trim()) {
+        toast(`Question ${i + 1}: questionText is required`, "error");
+        return;
+      }
+      const answerType = q.answerType;
+      if (answerType !== "mcq" && answerType !== "text" && answerType !== "number") {
+        toast(`Question ${i + 1}: answerType must be "mcq", "text", or "number"`, "error");
+        return;
+      }
+      if (answerType === "mcq") {
+        const choices = Array.isArray(q.choices) ? q.choices.map(String) : [];
+        if (choices.filter((c) => c.trim()).length < 2) {
+          toast(`Question ${i + 1}: MCQ needs at least 2 choices`, "error");
+          return;
+        }
+        let correctIndex = -1;
+        if (typeof q.correctIndex === "number") {
+          correctIndex = q.correctIndex;
+        } else if (typeof q.correctAnswer === "string") {
+          correctIndex = choices.findIndex((c) => c === q.correctAnswer);
+        } else if (Array.isArray(q.acceptedAnswers) && typeof q.acceptedAnswers[0] === "string") {
+          const first = q.acceptedAnswers[0] as string;
+          correctIndex = choices.findIndex((c) => c === first);
+        }
+        if (correctIndex < 0 || correctIndex >= choices.length || !choices[correctIndex].trim()) {
+          toast(`Question ${i + 1}: pick a valid correct choice (correctIndex or correctAnswer)`, "error");
+          return;
+        }
+        const padded = [...choices];
+        while (padded.length < 4) padded.push("");
+        importedQuestions.push({
+          questionText: q.questionText.trim(),
+          answerType: "mcq",
+          acceptedAnswers: [choices[correctIndex]],
+          choices: padded,
+          correctIndex,
+          maxAnswerLength: "40",
+        });
+      } else {
+        const answers = Array.isArray(q.acceptedAnswers)
+          ? q.acceptedAnswers.map(String).filter((a) => a.trim())
+          : [];
+        if (answers.length === 0) {
+          toast(`Question ${i + 1}: at least one acceptedAnswer required`, "error");
+          return;
+        }
+        importedQuestions.push({
+          questionText: q.questionText.trim(),
+          answerType,
+          acceptedAnswers: answers,
+          choices: ["", "", "", "", "", "", "", ""],
+          correctIndex: 0,
+          maxAnswerLength:
+            typeof q.maxAnswerLength === "number" && q.maxAnswerLength > 0
+              ? String(Math.floor(q.maxAnswerLength))
+              : "40",
+        });
+      }
+    }
+
+    setTitle(data.title.trim());
+    setBiblePortion(data.biblePortion.trim());
+    setIsPrerequisite(isPrereq);
+    if (!isPrereq) {
+      setStartDateTime(String(data.startDateTime));
+      setEndDateTime(String(data.endDateTime));
+    } else {
+      setStartDateTime("");
+      setEndDateTime("");
+    }
+    setQuestionCount(importedQuestions.length);
+    if (typeof data.secondsPerQuestion === "number" && data.secondsPerQuestion > 0) {
+      setSecondsPerQuestion(Math.floor(data.secondsPerQuestion));
+    }
+    setQuestions(importedQuestions);
+    setStep(2);
+    toast(`Imported ${importedQuestions.length} questions — review and publish`, "success");
+  };
 
   const handleNext = () => {
     if (!title || !biblePortion || questionCount < 1) {
@@ -222,6 +388,36 @@ export default function CreateQuizPage() {
 
         {step === 1 ? (
           <div className="space-y-4">
+            <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+              <p className="text-sm font-medium">Import a quiz from JSON</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Upload a JSON file to auto-fill the form. You&apos;ll be able to edit everything before publishing.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                >
+                  Import JSON
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadSample}
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-700"
+                >
+                  Download sample
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  onChange={handleImportFile}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-1">Quiz Title</label>
               <input
