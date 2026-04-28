@@ -114,6 +114,8 @@ export default async function EditQuizPage({
 
         <EditTimes
           quizId={quizId}
+          title={quiz.title}
+          biblePortion={quiz.biblePortion}
           startTime={quiz.startTime.toISOString()}
           endTime={quiz.endTime.toISOString()}
           secondsPerQuestion={quiz.secondsPerQuestion}

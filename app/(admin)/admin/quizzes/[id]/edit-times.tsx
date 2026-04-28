@@ -13,12 +13,16 @@ function toLocalDateTimeString(date: string) {
 
 export function EditTimes({
   quizId,
+  title,
+  biblePortion,
   startTime,
   endTime,
   secondsPerQuestion,
   isPrerequisite = false,
 }: {
   quizId: string;
+  title: string;
+  biblePortion: string;
   startTime: string;
   endTime: string;
   secondsPerQuestion: number;
@@ -26,12 +30,22 @@ export function EditTimes({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [titleVal, setTitleVal] = useState(title);
+  const [portion, setPortion] = useState(biblePortion);
   const [start, setStart] = useState(toLocalDateTimeString(startTime));
   const [end, setEnd] = useState(toLocalDateTimeString(endTime));
   const [seconds, setSeconds] = useState(String(secondsPerQuestion));
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
+    if (!titleVal.trim()) {
+      toast("Title is required", "error");
+      return;
+    }
+    if (!portion.trim()) {
+      toast("Bible portion is required", "error");
+      return;
+    }
     if (!isPrerequisite && new Date(end) <= new Date(start)) {
       toast("End time must be after start time", "error");
       return;
@@ -44,7 +58,11 @@ export function EditTimes({
 
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { secondsPerQuestion: parsedSeconds };
+      const body: Record<string, unknown> = {
+        title: titleVal.trim(),
+        biblePortion: portion.trim(),
+        secondsPerQuestion: parsedSeconds,
+      };
       if (!isPrerequisite) {
         body.startTime = new Date(start).toISOString();
         body.endTime = new Date(end).toISOString();
@@ -84,6 +102,28 @@ export function EditTimes({
     <div className="card p-5 space-y-4">
       <h3 className="text-sm font-semibold">Edit Quiz Settings</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-[var(--muted)] mb-1">
+            Quiz Title
+          </label>
+          <input
+            type="text"
+            value={titleVal}
+            onChange={(e) => setTitleVal(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card)] focus:border-indigo-500 focus:outline-none text-sm"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-[var(--muted)] mb-1">
+            Bible Portion
+          </label>
+          <input
+            type="text"
+            value={portion}
+            onChange={(e) => setPortion(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card)] focus:border-indigo-500 focus:outline-none text-sm"
+          />
+        </div>
         {!isPrerequisite && (
           <>
             <div>
@@ -134,6 +174,8 @@ export function EditTimes({
         <button
           onClick={() => {
             setEditing(false);
+            setTitleVal(title);
+            setPortion(biblePortion);
             setStart(toLocalDateTimeString(startTime));
             setEnd(toLocalDateTimeString(endTime));
             setSeconds(String(secondsPerQuestion));
