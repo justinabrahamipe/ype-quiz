@@ -40,6 +40,7 @@ type QuizInfo = {
     secondsPerQuestion: number;
   };
   status: "upcoming" | "active" | "ended";
+  isStaff?: boolean;
   userApproved: boolean;
   userQualified: boolean;
   hasInProgress: boolean;
@@ -402,7 +403,7 @@ export default function QuizAttemptPage() {
       );
     }
 
-    const { quiz, status, userApproved, userQualified, hasInProgress, hasCompleted } = info;
+    const { quiz, status, isStaff, userApproved, userQualified, hasInProgress, hasCompleted } = info;
     const perQuestion = quiz.secondsPerQuestion || 120;
     const totalSeconds = quiz.questionCount * perQuestion;
     const totalMinutes = Math.ceil(totalSeconds / 60);
@@ -415,10 +416,19 @@ export default function QuizAttemptPage() {
 
     let blockMessage: string | null = null;
     if (hasCompleted) blockMessage = "You've already submitted this quiz.";
-    else if (!userApproved) blockMessage = "Your account is pending approval.";
-    else if (!quiz.isPrerequisite && !userQualified) blockMessage = "Pass the qualifying quiz first to unlock this one.";
-    else if (status === "upcoming") blockMessage = `This quiz opens at ${new Date(quiz.startTime).toLocaleString()}.`;
-    else if (status === "ended") blockMessage = "This quiz has ended.";
+    else if (!isStaff && !userApproved) blockMessage = "Your account is pending approval.";
+    else if (!isStaff && !quiz.isPrerequisite && !userQualified) blockMessage = "Pass the qualifying quiz first to unlock this one.";
+    else if (!isStaff && status === "upcoming") blockMessage = `This quiz opens at ${new Date(quiz.startTime).toLocaleString()}.`;
+    else if (!isStaff && status === "ended") blockMessage = "This quiz has ended.";
+
+    const staffPreviewNote =
+      isStaff && (status !== "active" || !userApproved || (!quiz.isPrerequisite && !userQualified))
+        ? status === "upcoming"
+          ? `Preview mode — quiz opens at ${new Date(quiz.startTime).toLocaleString()}. Your attempt won't count.`
+          : status === "ended"
+          ? "Preview mode — quiz has ended. Your attempt won't count."
+          : "Preview mode — your attempt won't count."
+        : null;
 
     const canStart = blockMessage === null;
     const buttonLabel = hasInProgress ? "Resume Quiz" : "Start Quiz";
@@ -464,6 +474,12 @@ export default function QuizAttemptPage() {
             {blockMessage && (
               <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
                 {blockMessage}
+              </div>
+            )}
+
+            {staffPreviewNote && (
+              <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 px-3 py-2 text-sm text-indigo-800 dark:text-indigo-200">
+                {staffPreviewNote}
               </div>
             )}
 

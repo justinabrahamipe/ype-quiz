@@ -35,12 +35,15 @@ export async function POST(
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
-  if (now < quiz.startTime || now > quiz.endTime) {
+  const isStaff =
+    session.user.role === "admin" || session.user.role === "quizmaster";
+
+  if (!isStaff && (now < quiz.startTime || now > quiz.endTime)) {
     return NextResponse.json({ error: "Quiz is not active" }, { status: 403 });
   }
 
   // Non-prerequisite quizzes require the user to be both approved and qualified
-  if (!quiz.isPrerequisite) {
+  if (!isStaff && !quiz.isPrerequisite) {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { isQualified: true, isApproved: true },

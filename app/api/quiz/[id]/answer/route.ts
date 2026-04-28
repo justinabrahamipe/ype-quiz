@@ -21,7 +21,9 @@ export async function POST(
   }
 
   const now = new Date();
-  if (now < quiz.startTime || now > quiz.endTime) {
+  const isStaff =
+    session.user.role === "admin" || session.user.role === "quizmaster";
+  if (!isStaff && (now < quiz.startTime || now > quiz.endTime)) {
     return NextResponse.json({ error: "Quiz is not active" }, { status: 403 });
   }
 

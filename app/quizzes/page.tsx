@@ -17,11 +17,12 @@ export default async function QuizzesPage() {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { isQualified: true, isApproved: true, name: true },
+    select: { isQualified: true, isApproved: true, name: true, role: true },
   });
 
   const isQualified = dbUser?.isQualified ?? false;
   const isApproved = dbUser?.isApproved ?? false;
+  const isStaff = dbUser?.role === "admin" || dbUser?.role === "quizmaster";
 
   const [quizzes, userAttempts] = await Promise.all([
     prisma.quiz.findMany({
@@ -96,6 +97,7 @@ export default async function QuizzesPage() {
       <QuizzesDashboard
         isApproved={isApproved}
         isQualified={isQualified}
+        isStaff={isStaff}
         userName={dbUser?.name || session.user.name || ""}
         quizzesAttempted={attemptedCount}
         quizzesSkipped={skippedCount}

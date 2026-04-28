@@ -36,6 +36,9 @@ export async function GET(
   if (now < quiz.startTime) status = "upcoming";
   else if (now > quiz.endTime) status = "ended";
 
+  const isStaff =
+    session.user.role === "admin" || session.user.role === "quizmaster";
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { isQualified: true, isApproved: true },
@@ -57,6 +60,7 @@ export async function GET(
       secondsPerQuestion: quiz.secondsPerQuestion,
     },
     status,
+    isStaff,
     userApproved: !!user?.isApproved,
     userQualified: !!user?.isQualified,
     hasInProgress: !!attempt && !attempt.isComplete && !attempt.archivedAt,
