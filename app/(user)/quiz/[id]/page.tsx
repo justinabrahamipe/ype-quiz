@@ -77,12 +77,16 @@ export default function QuizAttemptPage() {
   const advancingRef = useRef(false);
   const existingAnswersRef = useRef(existingAnswers);
   const timeSpentRef = useRef(timeSpent);
+  const answerRef = useRef(answer);
   useEffect(() => {
     existingAnswersRef.current = existingAnswers;
   }, [existingAnswers]);
   useEffect(() => {
     timeSpentRef.current = timeSpent;
   }, [timeSpent]);
+  useEffect(() => {
+    answerRef.current = answer;
+  }, [answer]);
 
   // Fetch quiz info on mount (for the intro screen)
   useEffect(() => {
@@ -326,7 +330,10 @@ export default function QuizAttemptPage() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     try {
-      await saveAnswer(answer, true);
+      // Read via ref: this fires from setInterval, whose closure captures the
+      // answer at currentIndex-change time. Without the ref, an MCQ pick the
+      // user just made gets clobbered by a save of "" when the timer expires.
+      await saveAnswer(answerRef.current, true);
 
       const isLast = currentIndex >= questions.length - 1;
       if (isLast) {

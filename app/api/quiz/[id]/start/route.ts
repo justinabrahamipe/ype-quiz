@@ -4,11 +4,44 @@ import { prisma } from "@/lib/db";
 
 // Deterministic per-seed Fisher–Yates shuffle. Same seed → same order, so a
 // user sees the same shuffle across refreshes/resumes.
+//
+// Seed via cyrb53 (position-aware, so anagram strings don't collide) and use
+// mulberry32 for uniform draws. The previous version summed char codes (so
+// anagram-equal seeds shuffled identically) and multiplied past 2^53 (so the
+// modulo collapsed to predictable values for many seeds), which let one
+// question's display position end up paired with a different question's
+// shuffled choices for a subset of users.
+function cyrb53(str: string): number {
+  let h1 = 0xdeadbeef ^ 0;
+  let h2 = 0x41c6ce57 ^ 0;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0) ^ (h1 >>> 0);
+}
+
+function mulberry32(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function deterministicShuffle<T>(items: T[], seedString: string): T[] {
-  const seed = seedString.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rand = mulberry32(cyrb53(seedString));
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.abs((seed * (i + 1) * 2654435761) % (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;
