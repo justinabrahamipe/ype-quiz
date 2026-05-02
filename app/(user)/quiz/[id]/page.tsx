@@ -546,7 +546,7 @@ export default function QuizAttemptPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background px-4 py-5 flex flex-col justify-center focus-within:justify-start">
+    <div className="min-h-screen bg-background px-4 py-5">
       <div className="max-w-lg w-full mx-auto space-y-5">
         {/* Progress + compact timer */}
         <div className="flex items-center gap-3">
@@ -597,10 +597,10 @@ export default function QuizAttemptPage() {
                     key={choice}
                     type="button"
                     onClick={() => handleMcqPick(choice)}
-                    className={`w-full text-left px-4 py-3.5 rounded-xl border-2 text-base transition-colors ${
+                    className={`w-full text-left px-4 py-3.5 rounded-xl border-2 text-base touch-manipulation select-none cursor-pointer active:bg-blue-100 dark:active:bg-blue-900/40 ${
                       selected
                         ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 font-semibold"
-                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-300 dark:hover:border-blue-600"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
                     }`}
                   >
                     {choice}
