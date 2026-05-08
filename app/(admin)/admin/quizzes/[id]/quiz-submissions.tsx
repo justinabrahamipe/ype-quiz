@@ -123,7 +123,7 @@ export function QuizSubmissions({
   };
 
   return (
-    <Accordion defaultExpanded={defaultExpanded} disableGutters elevation={0} sx={{ border: "1px solid", borderColor: "divider", "&:before": { display: "none" } }}>
+    <Accordion defaultExpanded={defaultExpanded} disableGutters elevation={0} sx={{ border: "1px solid", borderColor: "divider", "&:before": { display: "none" }, overflow: "hidden" }}>
       <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
         <Typography variant="h6" fontWeight={600}>
           {title} ({submissions.length})
@@ -254,15 +254,16 @@ export function QuizSubmissions({
                           <Box sx={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid", borderColor: "text.disabled" }} />
                         )}
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="caption" noWrap>{q.questionText}</Typography>
-                          <Box sx={{ display: "flex", gap: 1.5 }}>
+                          <Typography variant="caption" component="div" sx={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{q.questionText}</Typography>
+                          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", minWidth: 0 }}>
                             <Typography
                               variant="caption"
+                              sx={{ wordBreak: "break-word", overflowWrap: "anywhere", minWidth: 0 }}
                               color={ans?.isCorrect === true ? "success.main" : ans?.isCorrect === false ? "error.main" : "text.secondary"}
                             >
                               {ans?.submittedText || "(empty)"}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" sx={{ wordBreak: "break-word", overflowWrap: "anywhere", minWidth: 0 }}>
                               Correct: {q.acceptedAnswers.join(", ")}
                             </Typography>
                           </Box>
