@@ -160,6 +160,7 @@ export default async function EditQuizPage({
 
           <QuizSubmissions
             quizId={quizId}
+            canUnarchive={session.user.role === "admin"}
             submissions={archived.map(toSubmissionShape)}
             questions={questionProps}
             title="Archived"

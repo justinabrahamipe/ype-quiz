@@ -18,6 +18,8 @@ import DialogActions from "@mui/material/DialogActions";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import ExpandMoreRoundedIcon from "@mui/icons-material/ExpandMoreRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
@@ -38,6 +40,8 @@ type Question = {
 
 export function QuizQuestions({ quizId, questions: initial }: { quizId: string; questions: Question[] }) {
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [editType, setEditType] = useState("mcq");
@@ -200,7 +204,7 @@ export function QuizQuestions({ quizId, questions: initial }: { quizId: string; 
   };
 
   return (
-    <Accordion defaultExpanded disableGutters elevation={0} sx={{ border: "1px solid", borderColor: "divider", "&:before": { display: "none" } }}>
+    <Accordion defaultExpanded={!isMobile} disableGutters elevation={0} sx={{ border: "1px solid", borderColor: "divider", "&:before": { display: "none" }, overflow: "hidden" }}>
       <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", pr: 1 }}>
           <Typography variant="h6" fontWeight={600}>Questions ({initial.length})</Typography>
@@ -337,11 +341,11 @@ export function QuizQuestions({ quizId, questions: initial }: { quizId: string; 
                   Q{i + 1}
                 </Typography>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" fontWeight={500}>{q.questionText}</Typography>
+                  <Typography variant="body2" fontWeight={500} sx={{ wordBreak: "break-word" }}>{q.questionText}</Typography>
                   <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap", alignItems: "center" }}>
-                    <Chip label={q.answerType} size="small" variant="outlined" sx={{ height: 18, fontSize: "0.6rem" }} />
+                    <Chip label={q.answerType} size="small" variant="outlined" sx={{ height: 18, fontSize: "0.6rem", maxWidth: "100%" }} />
                     {q.acceptedAnswers.map((a, j) => (
-                      <Chip key={j} icon={<CheckCircleRoundedIcon sx={{ fontSize: 12 }} />} label={a} size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: "0.65rem" }} />
+                      <Chip key={j} icon={<CheckCircleRoundedIcon sx={{ fontSize: 12 }} />} label={a} size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: "0.65rem", maxWidth: "100%" }} />
                     ))}
                   </Box>
                 </Box>

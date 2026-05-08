@@ -19,6 +19,7 @@ import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import SwapHorizRoundedIcon from "@mui/icons-material/SwapHorizRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import UnarchiveRoundedIcon from "@mui/icons-material/UnarchiveRounded";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -54,6 +55,7 @@ export function QuizSubmissions({
   submissions,
   questions,
   canDelete = false,
+  canUnarchive = false,
   title = "Submissions",
   defaultExpanded = true,
   emptyMessage = "None yet.",
@@ -62,6 +64,7 @@ export function QuizSubmissions({
   submissions: Submission[];
   questions: Question[];
   canDelete?: boolean;
+  canUnarchive?: boolean;
   title?: string;
   defaultExpanded?: boolean;
   emptyMessage?: string;
@@ -70,6 +73,7 @@ export function QuizSubmissions({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Submission | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -85,6 +89,23 @@ export function QuizSubmissions({
       toast("Failed to remove", "error");
     }
     setDeleting(false);
+  };
+
+  const unarchive = async (attemptId: string) => {
+    setUnarchivingId(attemptId);
+    const res = await fetch(`/api/admin/attempts/${attemptId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "unarchive" }),
+    });
+    if (res.ok) {
+      toast("Submission restored", "success");
+      router.refresh();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toast(data?.error || "Failed to restore", "error");
+    }
+    setUnarchivingId(null);
   };
 
   const toggleAnswer = async (answerId: string, userId: string) => {
@@ -176,6 +197,23 @@ export function QuizSubmissions({
                     >
                       <DeleteOutlineRoundedIcon sx={{ fontSize: 18 }} />
                     </IconButton>
+                  </Tooltip>
+                )}
+                {canUnarchive && (
+                  <Tooltip title="Unarchive (restores submission and may re-qualify the user)">
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={unarchivingId === sub.attemptId}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          unarchive(sub.attemptId);
+                        }}
+                        sx={{ color: "primary.main" }}
+                      >
+                        <UnarchiveRoundedIcon sx={{ fontSize: 18 }} />
+                      </IconButton>
+                    </span>
                   </Tooltip>
                 )}
                 <ExpandMoreRoundedIcon
