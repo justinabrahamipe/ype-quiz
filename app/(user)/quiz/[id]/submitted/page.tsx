@@ -35,6 +35,10 @@ export default async function SubmittedPage({
 
   if (!attempt || attempt.archivedAt) redirect(`/quiz/${quizId}`);
 
+  const lang = attempt.language === "ml" ? "ml" : "en";
+  const localizedText = (q: { questionText: string; questionTextMl: string | null }) =>
+    lang === "ml" && q.questionTextMl ? q.questionTextMl : q.questionText;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -70,7 +74,7 @@ export default async function SubmittedPage({
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">
                 Question {i + 1}
               </p>
-              <p className="font-medium">{ans.question.questionText}</p>
+              <p className="font-medium">{localizedText(ans.question)}</p>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                 Your answer:{" "}
                 <span className="font-medium">

@@ -19,6 +19,7 @@ export function EditTimes({
   endTime,
   secondsPerQuestion,
   isPrerequisite = false,
+  hasMalayalam = false,
 }: {
   quizId: string;
   title: string;
@@ -27,6 +28,7 @@ export function EditTimes({
   endTime: string;
   secondsPerQuestion: number;
   isPrerequisite?: boolean;
+  hasMalayalam?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -35,6 +37,7 @@ export function EditTimes({
   const [start, setStart] = useState(toLocalDateTimeString(startTime));
   const [end, setEnd] = useState(toLocalDateTimeString(endTime));
   const [seconds, setSeconds] = useState(String(secondsPerQuestion));
+  const [bilingual, setBilingual] = useState(hasMalayalam);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -62,6 +65,7 @@ export function EditTimes({
         title: titleVal.trim(),
         biblePortion: portion.trim(),
         secondsPerQuestion: parsedSeconds,
+        hasMalayalam: bilingual,
       };
       if (!isPrerequisite) {
         body.startTime = new Date(start).toISOString();
@@ -162,6 +166,22 @@ export function EditTimes({
             className="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card)] focus:border-indigo-500 focus:outline-none text-sm"
           />
         </div>
+        <div className="sm:col-span-2">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={bilingual}
+              onChange={(e) => setBilingual(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-[var(--card-border)] text-indigo-600 focus:ring-indigo-500"
+            />
+            <span className="text-sm">
+              <span className="font-medium">Bilingual (English + Malayalam)</span>
+              <span className="block text-xs text-[var(--muted)] mt-0.5">
+                Each question must be entered in both languages. Only MCQ and number types are allowed when bilingual.
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
       <div className="flex gap-2">
         <button
@@ -179,6 +199,7 @@ export function EditTimes({
             setStart(toLocalDateTimeString(startTime));
             setEnd(toLocalDateTimeString(endTime));
             setSeconds(String(secondsPerQuestion));
+            setBilingual(hasMalayalam);
           }}
           className="px-4 py-2 rounded-xl text-xs font-medium border border-[var(--card-border)] hover:bg-[var(--surface)] transition-colors"
         >

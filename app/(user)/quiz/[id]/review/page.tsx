@@ -70,12 +70,19 @@ export default async function ReviewPage({
     : null;
   const needsRetry = quiz.isPrerequisite && !dbUser?.isQualified;
 
+  const lang = activeAttempt?.language === "ml" ? "ml" : "en";
+
   const questions = quiz.questions.map((q) => {
     const a = answerMap.get(q.id);
+    const text = lang === "ml" && q.questionTextMl ? q.questionTextMl : q.questionText;
+    const accepted =
+      lang === "ml" && q.answerType === "mcq" && q.acceptedAnswersMl.length > 0
+        ? q.acceptedAnswersMl
+        : q.acceptedAnswers;
     return {
       id: q.id,
-      questionText: q.questionText,
-      acceptedAnswers: q.acceptedAnswers,
+      questionText: text,
+      acceptedAnswers: accepted,
       submittedText: a?.submittedText ?? null,
       isCorrect: a?.isCorrect ?? false,
       answered: !!a?.submittedText,

@@ -51,6 +51,7 @@ model Quiz {
   questionCount       Int
   secondsPerQuestion  Int        @default(120)
   isPrerequisite      Boolean    @default(false)
+  hasMalayalam        Boolean    @default(false)
   createdBy        String
   creator          User       @relation(fields: [createdBy], references: [id])
   createdAt        DateTime   @default(now())
@@ -65,16 +66,19 @@ model Quiz {
 }
 
 model Question {
-  id              String     @id @default(uuid())
-  quizId          String
-  quiz            Quiz       @relation(fields: [quizId], references: [id])
-  questionText    String
-  answerType      AnswerType
-  acceptedAnswers String[]
-  choices         String[]   @default([])
-  orderIndex      Int
-  maxAnswerLength Int?
-  answers         Answer[]
+  id                String     @id @default(uuid())
+  quizId            String
+  quiz              Quiz       @relation(fields: [quizId], references: [id])
+  questionText      String
+  questionTextMl    String?
+  answerType        AnswerType
+  acceptedAnswers   String[]
+  acceptedAnswersMl String[]   @default([])
+  choices           String[]   @default([])
+  choicesMl         String[]   @default([])
+  orderIndex        Int
+  maxAnswerLength   Int?
+  answers           Answer[]
 
   @@index([quizId])
 }
@@ -91,6 +95,7 @@ model Attempt {
   bonusPoints Decimal   @default(0)
   isComplete  Boolean   @default(false)
   archivedAt  DateTime?
+  language    String?
   answers     Answer[]
 
   @@unique([quizId, userId])

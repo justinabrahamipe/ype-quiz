@@ -47,14 +47,23 @@ export async function POST(
     where: { attemptId: attempt.id },
   });
 
+  const lang = attempt.language === "ml" ? "ml" : "en";
+
   let correct = 0;
   for (const question of quiz.questions) {
     const userAnswers = freshAnswers.filter((a) => a.questionId === question.id);
     const userAnswer = userAnswers[userAnswers.length - 1];
+    // Malayalam MCQ uses the parallel acceptedAnswersMl. Numbers are language-
+    // neutral and reuse acceptedAnswers in either language. Text only exists
+    // in monolingual quizzes (validation rejects it when hasMalayalam is on).
+    const accepted =
+      lang === "ml" && question.answerType === "mcq" && question.acceptedAnswersMl.length > 0
+        ? question.acceptedAnswersMl
+        : question.acceptedAnswers;
     if (userAnswer?.submittedText) {
       const isCorrect = checkAnswer(
         userAnswer.submittedText!,
-        question.acceptedAnswers,
+        accepted,
         question.answerType as "text" | "number"
       );
       if (isCorrect) correct++;

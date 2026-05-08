@@ -47,6 +47,43 @@ function deterministicShuffle<T>(items: T[], seedString: string): T[] {
   return out;
 }
 
+type QuestionRow = {
+  id: string;
+  questionText: string;
+  questionTextMl: string | null;
+  answerType: string;
+  orderIndex: number;
+  maxAnswerLength: number | null;
+  choices: string[];
+  choicesMl: string[];
+};
+
+function projectQuestion(q: QuestionRow, language: "en" | "ml", userId: string) {
+  const isMl = language === "ml";
+  const text = isMl && q.questionTextMl ? q.questionTextMl : q.questionText;
+
+  let choices: string[] = [];
+  if (q.answerType === "mcq") {
+    // Shuffle indices once, then map both choice arrays through the same
+    // permutation so en/ml stay positionally aligned.
+    const indices = deterministicShuffle(
+      q.choices.map((_, i) => i),
+      userId + q.id
+    );
+    const source = isMl && q.choicesMl.length === q.choices.length ? q.choicesMl : q.choices;
+    choices = indices.map((i) => source[i]);
+  }
+
+  return {
+    id: q.id,
+    questionText: text,
+    answerType: q.answerType,
+    orderIndex: q.orderIndex,
+    maxAnswerLength: q.maxAnswerLength,
+    choices,
+  };
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -58,6 +95,9 @@ export async function POST(
 
   const { id: quizId } = await params;
   const now = new Date();
+
+  const body = await req.json().catch(() => ({}));
+  const requestedLang = body?.language === "ml" ? "ml" : body?.language === "en" ? "en" : null;
 
   const quiz = await prisma.quiz.findUnique({
     where: { id: quizId },
@@ -95,6 +135,11 @@ export async function POST(
     }
   }
 
+  if (quiz.hasMalayalam && !requestedLang) {
+    return NextResponse.json({ error: "Pick a language to start" }, { status: 400 });
+  }
+  const newAttemptLang: "en" | "ml" = quiz.hasMalayalam ? (requestedLang as "en" | "ml") : "en";
+
   let existingAttempt = await prisma.attempt.findUnique({
     where: { quizId_userId: { quizId, userId: session.user.id } },
     include: { answers: true },
@@ -119,24 +164,15 @@ export async function POST(
         await prisma.answer.deleteMany({ where: { attemptId: existingAttempt.id } });
         await prisma.attempt.delete({ where: { id: existingAttempt.id } });
         const newAttempt = await prisma.attempt.create({
-          data: { quizId, userId: session.user.id },
+          data: { quizId, userId: session.user.id, language: newAttemptLang },
           include: { answers: true },
         });
         return NextResponse.json({
           attemptId: newAttempt.id,
+          language: newAttemptLang,
           nextQuestionIndex: 0,
           secondsPerQuestion: quiz.secondsPerQuestion,
-          questions: quiz.questions.map((q) => ({
-            id: q.id,
-            questionText: q.questionText,
-            answerType: q.answerType,
-            orderIndex: q.orderIndex,
-            maxAnswerLength: q.maxAnswerLength,
-            choices:
-              q.answerType === "mcq"
-                ? deterministicShuffle(q.choices, session.user.id + q.id)
-                : [],
-          })),
+          questions: quiz.questions.map((q) => projectQuestion(q, newAttemptLang, session.user.id)),
           serverTimestamp: new Date().toISOString(),
           existingAnswers: [],
         });
@@ -148,10 +184,15 @@ export async function POST(
   let attempt = existingAttempt;
   if (!attempt) {
     attempt = await prisma.attempt.create({
-      data: { quizId, userId: session.user.id },
+      data: { quizId, userId: session.user.id, language: newAttemptLang },
       include: { answers: true },
     });
   }
+
+  // Resuming: lock to the language stored on the attempt (ignore the body).
+  // Legacy attempts without a stored language fall back to English.
+  const effectiveLang: "en" | "ml" =
+    attempt.language === "ml" ? "ml" : attempt.language === "en" ? "en" : newAttemptLang;
 
   // Shuffle questions deterministically per user (seed = visitorId + quizId)
   const shuffled = deterministicShuffle(quiz.questions, session.user.id + quizId);
@@ -168,19 +209,10 @@ export async function POST(
 
   return NextResponse.json({
     attemptId: attempt.id,
+    language: effectiveLang,
     nextQuestionIndex: nextIndex,
     secondsPerQuestion: quiz.secondsPerQuestion,
-    questions: shuffled.map((q) => ({
-      id: q.id,
-      questionText: q.questionText,
-      answerType: q.answerType,
-      orderIndex: q.orderIndex,
-      maxAnswerLength: q.maxAnswerLength,
-      choices:
-        q.answerType === "mcq"
-          ? deterministicShuffle(q.choices, session.user.id + q.id)
-          : [],
-    })),
+    questions: shuffled.map((q) => projectQuestion(q, effectiveLang, session.user.id)),
     serverTimestamp: new Date().toISOString(),
     existingAnswers: attempt.answers.map((a) => ({
       questionId: a.questionId,

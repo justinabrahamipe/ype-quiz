@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { validateBilingualQuestion } from "@/lib/multilang";
 
 export async function PATCH(
   req: NextRequest,
@@ -13,11 +14,28 @@ export async function PATCH(
 
   const { id: quizId } = await params;
   const body = await req.json();
-  const { startTime, endTime, title, biblePortion, questions, secondsPerQuestion } = body;
+  const { startTime, endTime, title, biblePortion, questions, secondsPerQuestion, hasMalayalam } = body;
 
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
   if (!quiz) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+  }
+
+  const nextHasMalayalam = hasMalayalam !== undefined ? !!hasMalayalam : quiz.hasMalayalam;
+
+  // If toggling bilingual on, every existing question must already pass validation
+  // (the editor enforces this client-side, but we double-check here).
+  if (hasMalayalam === true && !quiz.hasMalayalam) {
+    const allQuestions = await prisma.question.findMany({ where: { quizId }, orderBy: { orderIndex: "asc" } });
+    for (let i = 0; i < allQuestions.length; i++) {
+      const err = validateBilingualQuestion(allQuestions[i]);
+      if (err) {
+        return NextResponse.json(
+          { error: `Question ${i + 1}: ${err}. Fill Malayalam fields before enabling bilingual mode.` },
+          { status: 400 }
+        );
+      }
+    }
   }
 
   const quizUpdates: Record<string, unknown> = {};
@@ -32,6 +50,9 @@ export async function PATCH(
     secondsPerQuestion > 0
   ) {
     quizUpdates.secondsPerQuestion = Math.floor(secondsPerQuestion);
+  }
+  if (hasMalayalam !== undefined) {
+    quizUpdates.hasMalayalam = !!hasMalayalam;
   }
 
   if (quizUpdates.startTime && quizUpdates.endTime && (quizUpdates.endTime as Date) <= (quizUpdates.startTime as Date)) {
@@ -49,12 +70,43 @@ export async function PATCH(
   if (questions && Array.isArray(questions)) {
     for (const q of questions) {
       if (!q.id) continue;
+
+      // Validate bilingual constraints on the merged shape
+      if (nextHasMalayalam) {
+        const existing = await prisma.question.findUnique({ where: { id: q.id } });
+        if (!existing) continue;
+        const merged = {
+          answerType: q.answerType ?? existing.answerType,
+          questionText: q.questionText ?? existing.questionText,
+          questionTextMl: q.questionTextMl !== undefined ? q.questionTextMl : existing.questionTextMl,
+          choices: Array.isArray(q.choices) ? q.choices : existing.choices,
+          choicesMl: Array.isArray(q.choicesMl) ? q.choicesMl : existing.choicesMl,
+          acceptedAnswers: Array.isArray(q.acceptedAnswers) ? q.acceptedAnswers : existing.acceptedAnswers,
+          acceptedAnswersMl: Array.isArray(q.acceptedAnswersMl) ? q.acceptedAnswersMl : existing.acceptedAnswersMl,
+        };
+        const err = validateBilingualQuestion(merged);
+        if (err) {
+          return NextResponse.json({ error: err }, { status: 400 });
+        }
+      }
+
       const questionUpdates: Record<string, unknown> = {};
       if (q.questionText !== undefined) questionUpdates.questionText = q.questionText;
+      if (q.questionTextMl !== undefined) {
+        questionUpdates.questionTextMl = typeof q.questionTextMl === "string" && q.questionTextMl.trim()
+          ? q.questionTextMl.trim()
+          : null;
+      }
       if (q.acceptedAnswers !== undefined) questionUpdates.acceptedAnswers = q.acceptedAnswers;
+      if (q.acceptedAnswersMl !== undefined) {
+        questionUpdates.acceptedAnswersMl = Array.isArray(q.acceptedAnswersMl) ? q.acceptedAnswersMl : [];
+      }
       if (q.answerType !== undefined) questionUpdates.answerType = q.answerType;
       if (Array.isArray(q.choices)) {
         questionUpdates.choices = q.choices.filter((c: string) => c && c.trim());
+      }
+      if (Array.isArray(q.choicesMl)) {
+        questionUpdates.choicesMl = q.choicesMl.filter((c: string) => c && c.trim());
       }
       if (q.maxAnswerLength !== undefined) {
         questionUpdates.maxAnswerLength =
@@ -73,7 +125,23 @@ export async function PATCH(
 
   // Add a new question
   if (body.addQuestion) {
-    const { questionText, answerType, acceptedAnswers, choices, maxAnswerLength } = body.addQuestion;
+    const { questionText, questionTextMl, answerType, acceptedAnswers, acceptedAnswersMl, choices, choicesMl, maxAnswerLength } = body.addQuestion;
+
+    if (nextHasMalayalam) {
+      const err = validateBilingualQuestion({
+        answerType,
+        questionText,
+        questionTextMl,
+        choices,
+        choicesMl,
+        acceptedAnswers,
+        acceptedAnswersMl,
+      });
+      if (err) {
+        return NextResponse.json({ error: err }, { status: 400 });
+      }
+    }
+
     const maxOrder = await prisma.question.findFirst({
       where: { quizId },
       orderBy: { orderIndex: "desc" },
@@ -83,9 +151,12 @@ export async function PATCH(
       data: {
         quizId,
         questionText,
+        questionTextMl: typeof questionTextMl === "string" && questionTextMl.trim() ? questionTextMl.trim() : null,
         answerType: answerType || "mcq",
         acceptedAnswers: acceptedAnswers || [],
+        acceptedAnswersMl: Array.isArray(acceptedAnswersMl) ? acceptedAnswersMl : [],
         choices: Array.isArray(choices) ? choices.filter((c: string) => c && c.trim()) : [],
+        choicesMl: Array.isArray(choicesMl) ? choicesMl.filter((c: string) => c && c.trim()) : [],
         orderIndex: (maxOrder?.orderIndex ?? -1) + 1,
         maxAnswerLength:
           maxAnswerLength != null && Number.isFinite(maxAnswerLength) && maxAnswerLength > 0

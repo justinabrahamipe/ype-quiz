@@ -35,6 +35,7 @@ type QuizInfo = {
     biblePortion: string;
     questionCount: number;
     isPrerequisite: boolean;
+    hasMalayalam: boolean;
     startTime: string;
     endTime: string;
     secondsPerQuestion: number;
@@ -45,6 +46,7 @@ type QuizInfo = {
   userQualified: boolean;
   hasInProgress: boolean;
   hasCompleted: boolean;
+  attemptLanguage: "en" | "ml" | null;
 };
 
 export default function QuizAttemptPage() {
@@ -55,6 +57,7 @@ export default function QuizAttemptPage() {
   const [infoError, setInfoError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [startingAttempt, setStartingAttempt] = useState(false);
+  const [language, setLanguage] = useState<"en" | "ml" | null>(null);
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [attemptId, setAttemptId] = useState("");
@@ -106,7 +109,17 @@ export default function QuizAttemptPage() {
           return;
         }
         const data: QuizInfo = await r.json();
-        if (!cancelled) setInfo(data);
+        if (!cancelled) {
+          setInfo(data);
+          // Lock the language picker when resuming a live attempt; otherwise
+          // default to English for monolingual quizzes so the start button is
+          // immediately enabled.
+          if (data.attemptLanguage === "ml" || data.attemptLanguage === "en") {
+            setLanguage(data.attemptLanguage);
+          } else if (!data.quiz.hasMalayalam) {
+            setLanguage("en");
+          }
+        }
       } catch {
         if (!cancelled) {
           if (retries > 0) {
@@ -130,7 +143,11 @@ export default function QuizAttemptPage() {
 
     const startQuiz = async (retries = 2) => {
       try {
-        const r = await fetch(`/api/quiz/${quizId}/start`, { method: "POST" });
+        const r = await fetch(`/api/quiz/${quizId}/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ language }),
+        });
         if (!r.ok) {
           if (r.status === 401 && retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -178,7 +195,7 @@ export default function QuizAttemptPage() {
 
     startQuiz();
     return () => { cancelled = true; };
-  }, [quizId, router, started]);
+  }, [quizId, router, started, language]);
 
   // Initialize the question whenever the user navigates to a new one.
   // Reads existingAnswers/timeSpent via ref so this effect does NOT re-run on
@@ -444,7 +461,8 @@ export default function QuizAttemptPage() {
           : "Preview mode — your attempt won't count."
         : null;
 
-    const canStart = blockMessage === null;
+    const needsLanguagePick = quiz.hasMalayalam && !hasInProgress && language === null;
+    const canStart = blockMessage === null && !needsLanguagePick;
     const buttonLabel = hasInProgress ? "Resume Quiz" : "Start Quiz";
 
     return (
@@ -484,6 +502,31 @@ export default function QuizAttemptPage() {
               <li>You can&apos;t go back to a previous question.</li>
               <li>Plan for about {totalMinutes} minute{totalMinutes === 1 ? "" : "s"} of focused time.</li>
             </ul>
+
+            {quiz.hasMalayalam && !hasInProgress && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Choose a language</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["en", "ml"] as const).map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setLanguage(l)}
+                      className={`py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                        language === l
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:border-blue-500"
+                      }`}
+                    >
+                      {l === "en" ? "English" : "മലയാളം"}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Your language can&apos;t be changed once you start.
+                </p>
+              </div>
+            )}
 
             {blockMessage && (
               <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">

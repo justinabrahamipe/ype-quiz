@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AnswerType } from "@prisma/client";
+import { validateBilingualQuestion } from "@/lib/multilang";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { title, biblePortion, startDateTime, endDateTime, questionCount, questions, isPrerequisite, secondsPerQuestion } = body;
+  const { title, biblePortion, startDateTime, endDateTime, questionCount, questions, isPrerequisite, secondsPerQuestion, hasMalayalam } = body;
 
   if (!title || !biblePortion || !startDateTime || !endDateTime || !questionCount || !questions?.length) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -28,6 +29,15 @@ export async function POST(req: NextRequest) {
       ? Math.floor(secondsPerQuestion)
       : 120;
 
+  if (hasMalayalam) {
+    for (let i = 0; i < questions.length; i++) {
+      const err = validateBilingualQuestion(questions[i]);
+      if (err) {
+        return NextResponse.json({ error: `Question ${i + 1}: ${err}` }, { status: 400 });
+      }
+    }
+  }
+
   const quiz = await prisma.quiz.create({
     data: {
       title,
@@ -37,23 +47,30 @@ export async function POST(req: NextRequest) {
       questionCount,
       secondsPerQuestion: normalizedSeconds,
       isPrerequisite: !!isPrerequisite,
+      hasMalayalam: !!hasMalayalam,
       createdBy: session.user.id,
       questions: {
         create: questions.map(
           (
             q: {
               questionText: string;
+              questionTextMl?: string | null;
               answerType: string;
               acceptedAnswers: string[];
+              acceptedAnswersMl?: string[];
               choices?: string[];
+              choicesMl?: string[];
               maxAnswerLength?: number | null;
             },
             i: number
           ) => ({
             questionText: q.questionText,
+            questionTextMl: hasMalayalam ? (q.questionTextMl?.trim() || null) : null,
             answerType: q.answerType as AnswerType,
             acceptedAnswers: q.acceptedAnswers,
+            acceptedAnswersMl: hasMalayalam && Array.isArray(q.acceptedAnswersMl) ? q.acceptedAnswersMl : [],
             choices: Array.isArray(q.choices) ? q.choices.filter((c) => c.trim()) : [],
+            choicesMl: hasMalayalam && Array.isArray(q.choicesMl) ? q.choicesMl.filter((c) => c.trim()) : [],
             orderIndex: i,
             maxAnswerLength:
               q.maxAnswerLength != null && Number.isFinite(q.maxAnswerLength) && q.maxAnswerLength > 0

@@ -7,9 +7,11 @@ import { toast } from "@/components/toaster";
 
 type QuestionForm = {
   questionText: string;
+  questionTextMl: string;
   answerType: "text" | "number" | "mcq";
   acceptedAnswers: string[];
   choices: string[];
+  choicesMl: string[];
   correctIndex: number;
   maxAnswerLength: string;
 };
@@ -21,6 +23,10 @@ const SAMPLE_QUIZ_JSON = {
   endDateTime: "2026-05-01T22:00",
   secondsPerQuestion: 120,
   isPrerequisite: false,
+  hasMalayalam: false,
+  // For bilingual quizzes set hasMalayalam: true and add questionTextMl + choicesMl
+  // (matching choices length, same positional order). Text type is not allowed
+  // in bilingual quizzes — only mcq and number.
   questions: [
     {
       questionText: "Who was the first man God created?",
@@ -53,6 +59,7 @@ export default function CreateQuizPage() {
   const [questionCount, setQuestionCount] = useState(10);
   const [secondsPerQuestion, setSecondsPerQuestion] = useState(120);
   const [isPrerequisite, setIsPrerequisite] = useState(false);
+  const [hasMalayalam, setHasMalayalam] = useState(false);
   const [questions, setQuestions] = useState<QuestionForm[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +118,8 @@ export default function CreateQuizPage() {
       }
     }
 
+    const importedHasMl = !!data.hasMalayalam;
+
     const importedQuestions: QuestionForm[] = [];
     for (let i = 0; i < rawQuestions.length; i++) {
       const q = rawQuestions[i] as Record<string, unknown>;
@@ -121,6 +130,15 @@ export default function CreateQuizPage() {
       const answerType = q.answerType;
       if (answerType !== "mcq" && answerType !== "text" && answerType !== "number") {
         toast(`Question ${i + 1}: answerType must be "mcq", "text", or "number"`, "error");
+        return;
+      }
+      if (importedHasMl && answerType === "text") {
+        toast(`Question ${i + 1}: bilingual quizzes can't use text questions`, "error");
+        return;
+      }
+      const questionTextMl = typeof q.questionTextMl === "string" ? q.questionTextMl.trim() : "";
+      if (importedHasMl && !questionTextMl) {
+        toast(`Question ${i + 1}: questionTextMl is required when hasMalayalam`, "error");
         return;
       }
       if (answerType === "mcq") {
@@ -142,13 +160,27 @@ export default function CreateQuizPage() {
           toast(`Question ${i + 1}: pick a valid correct choice (correctIndex or correctAnswer)`, "error");
           return;
         }
+        let choicesMl: string[] = [];
+        if (importedHasMl) {
+          choicesMl = Array.isArray(q.choicesMl) ? q.choicesMl.map(String) : [];
+          if (choicesMl.length !== choices.length || choicesMl.some((c) => !c.trim())) {
+            toast(`Question ${i + 1}: choicesMl must match choices count and be non-empty`, "error");
+            return;
+          }
+        }
         const padded = [...choices];
-        while (padded.length < 4) padded.push("");
+        const paddedMl = [...choicesMl];
+        while (padded.length < 4) {
+          padded.push("");
+          paddedMl.push("");
+        }
         importedQuestions.push({
           questionText: q.questionText.trim(),
+          questionTextMl,
           answerType: "mcq",
           acceptedAnswers: [choices[correctIndex]],
           choices: padded,
+          choicesMl: paddedMl,
           correctIndex,
           maxAnswerLength: "40",
         });
@@ -162,9 +194,11 @@ export default function CreateQuizPage() {
         }
         importedQuestions.push({
           questionText: q.questionText.trim(),
+          questionTextMl,
           answerType,
           acceptedAnswers: answers,
-          choices: ["", "", "", "", "", "", "", ""],
+          choices: ["", "", "", ""],
+          choicesMl: ["", "", "", ""],
           correctIndex: 0,
           maxAnswerLength:
             typeof q.maxAnswerLength === "number" && q.maxAnswerLength > 0
@@ -177,6 +211,7 @@ export default function CreateQuizPage() {
     setTitle(data.title.trim());
     setBiblePortion(data.biblePortion.trim());
     setIsPrerequisite(isPrereq);
+    setHasMalayalam(importedHasMl);
     if (!isPrereq) {
       setStartDateTime(String(data.startDateTime));
       setEndDateTime(String(data.endDateTime));
@@ -209,9 +244,11 @@ export default function CreateQuizPage() {
     setQuestions(
       Array.from({ length: questionCount }, () => ({
         questionText: "",
+        questionTextMl: "",
         answerType: "mcq" as const,
         acceptedAnswers: [""],
-        choices: ["", "", "", "", "", "", "", ""],
+        choices: ["", "", "", ""],
+        choicesMl: ["", "", "", ""],
         correctIndex: 0,
         maxAnswerLength: "40",
       }))
@@ -237,10 +274,24 @@ export default function CreateQuizPage() {
     });
   };
 
+  const updateChoiceMl = (qIdx: number, cIdx: number, value: string) => {
+    setQuestions((prev) => {
+      const copy = [...prev];
+      const choicesMl = [...copy[qIdx].choicesMl];
+      choicesMl[cIdx] = value;
+      copy[qIdx] = { ...copy[qIdx], choicesMl };
+      return copy;
+    });
+  };
+
   const addChoice = (qIdx: number) => {
     setQuestions((prev) => {
       const copy = [...prev];
-      copy[qIdx] = { ...copy[qIdx], choices: [...copy[qIdx].choices, ""] };
+      copy[qIdx] = {
+        ...copy[qIdx],
+        choices: [...copy[qIdx].choices, ""],
+        choicesMl: [...copy[qIdx].choicesMl, ""],
+      };
       return copy;
     });
   };
@@ -249,10 +300,11 @@ export default function CreateQuizPage() {
     setQuestions((prev) => {
       const copy = [...prev];
       const choices = copy[qIdx].choices.filter((_, i) => i !== cIdx);
+      const choicesMl = copy[qIdx].choicesMl.filter((_, i) => i !== cIdx);
       let correctIndex = copy[qIdx].correctIndex;
       if (cIdx === correctIndex) correctIndex = 0;
       else if (cIdx < correctIndex) correctIndex -= 1;
-      copy[qIdx] = { ...copy[qIdx], choices, correctIndex };
+      copy[qIdx] = { ...copy[qIdx], choices, choicesMl, correctIndex };
       return copy;
     });
   };
@@ -307,6 +359,16 @@ export default function CreateQuizPage() {
         toast(`Question ${i + 1} text is required`, "error");
         return;
       }
+      if (hasMalayalam) {
+        if (q.answerType === "text") {
+          toast(`Question ${i + 1}: text questions aren't allowed in bilingual quizzes`, "error");
+          return;
+        }
+        if (!q.questionTextMl.trim()) {
+          toast(`Question ${i + 1}: Malayalam question text required`, "error");
+          return;
+        }
+      }
       if (q.answerType === "mcq") {
         const validChoices = q.choices.filter((c) => c.trim());
         if (validChoices.length < 2) {
@@ -317,6 +379,19 @@ export default function CreateQuizPage() {
         if (!correct) {
           toast(`Question ${i + 1}: pick a correct choice`, "error");
           return;
+        }
+        if (hasMalayalam) {
+          const choicesMl = q.choices
+            .map((c, idx) => ({ c: c.trim(), m: q.choicesMl[idx]?.trim() ?? "" }))
+            .filter((p) => p.c);
+          if (choicesMl.some((p) => !p.m)) {
+            toast(`Question ${i + 1}: fill the Malayalam version of every choice`, "error");
+            return;
+          }
+          if (!q.choicesMl[q.correctIndex]?.trim()) {
+            toast(`Question ${i + 1}: Malayalam version of the correct choice is empty`, "error");
+            return;
+          }
         }
       } else {
         const validAnswers = q.acceptedAnswers.filter((a) => a.trim());
@@ -344,23 +419,35 @@ export default function CreateQuizPage() {
           questionCount,
           secondsPerQuestion,
           isPrerequisite,
+          hasMalayalam,
           questions: questions.map((q) => {
             if (q.answerType === "mcq") {
-              const choices = q.choices.map((c) => c.trim()).filter((c) => c);
+              const indices = q.choices
+                .map((c, i) => ({ c: c.trim(), m: q.choicesMl[i]?.trim() ?? "", i }))
+                .filter((p) => p.c);
+              const choices = indices.map((p) => p.c);
+              const choicesMl = hasMalayalam ? indices.map((p) => p.m) : [];
               const correct = q.choices[q.correctIndex]?.trim() || "";
+              const correctMl = hasMalayalam ? (q.choicesMl[q.correctIndex]?.trim() || "") : "";
               return {
                 questionText: q.questionText,
+                questionTextMl: hasMalayalam ? q.questionTextMl.trim() : null,
                 answerType: q.answerType,
                 acceptedAnswers: [correct],
+                acceptedAnswersMl: hasMalayalam && correctMl ? [correctMl] : [],
                 choices,
+                choicesMl,
                 maxAnswerLength: null,
               };
             }
             return {
               questionText: q.questionText,
+              questionTextMl: hasMalayalam ? q.questionTextMl.trim() : null,
               answerType: q.answerType,
               acceptedAnswers: q.acceptedAnswers.filter((a) => a.trim()),
+              acceptedAnswersMl: [],
               choices: [],
+              choicesMl: [],
               maxAnswerLength: q.maxAnswerLength.trim() === "" ? null : Number(q.maxAnswerLength),
             };
           }),
@@ -503,6 +590,18 @@ export default function CreateQuizPage() {
                 <p className="text-xs text-slate-400">Users must score 70%+ to unlock regular quizzes</p>
               </div>
             </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hasMalayalam}
+                onChange={(e) => setHasMalayalam(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600"
+              />
+              <div>
+                <span className="text-sm font-medium">Bilingual (English + Malayalam)</span>
+                <p className="text-xs text-slate-400">Each question must be entered in both languages. Only MCQ and number types are allowed.</p>
+              </div>
+            </label>
             <button
               onClick={handleNext}
               className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
@@ -542,13 +641,23 @@ export default function CreateQuizPage() {
                 <textarea
                   value={q.questionText}
                   onChange={(e) => updateQuestion(qIdx, "questionText", e.target.value)}
-                  placeholder="Question text..."
+                  placeholder={hasMalayalam ? "Question (English)..." : "Question text..."}
                   rows={2}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-blue-500 focus:outline-none text-sm"
                 />
+                {hasMalayalam && (
+                  <textarea
+                    value={q.questionTextMl}
+                    onChange={(e) => updateQuestion(qIdx, "questionTextMl", e.target.value)}
+                    placeholder="Question (Malayalam)..."
+                    rows={2}
+                    dir="auto"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 focus:border-blue-500 focus:outline-none text-sm"
+                  />
+                )}
 
                 <div className="flex gap-2 items-center flex-wrap">
-                  {(["mcq", "text", "number"] as const).map((t) => (
+                  {(hasMalayalam ? (["mcq", "number"] as const) : (["mcq", "text", "number"] as const)).map((t) => (
                     <button
                       key={t}
                       onClick={() => updateQuestion(qIdx, "answerType", t)}
@@ -578,28 +687,40 @@ export default function CreateQuizPage() {
                 {q.answerType === "mcq" ? (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                      Choices (pick the correct one)
+                      Choices (pick the correct one){hasMalayalam ? " — fill English and Malayalam" : ""}
                     </p>
                     {q.choices.map((choice, cIdx) => (
-                      <div key={cIdx} className="flex gap-2 items-center">
+                      <div key={cIdx} className={`flex gap-2 ${hasMalayalam ? "items-start" : "items-center"}`}>
                         <input
                           type="radio"
                           name={`correct-${qIdx}`}
                           checked={q.correctIndex === cIdx}
                           onChange={() => updateQuestion(qIdx, "correctIndex", cIdx)}
-                          className="w-4 h-4"
+                          className={`w-4 h-4 ${hasMalayalam ? "mt-2" : ""}`}
                         />
-                        <input
-                          type="text"
-                          value={choice}
-                          onChange={(e) => updateChoice(qIdx, cIdx, e.target.value)}
-                          placeholder={`Choice ${cIdx + 1}`}
-                          className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 focus:outline-none"
-                        />
+                        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                          <input
+                            type="text"
+                            value={choice}
+                            onChange={(e) => updateChoice(qIdx, cIdx, e.target.value)}
+                            placeholder={hasMalayalam ? `Choice ${cIdx + 1} (English)` : `Choice ${cIdx + 1}`}
+                            className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                          {hasMalayalam && (
+                            <input
+                              type="text"
+                              dir="auto"
+                              value={q.choicesMl[cIdx] ?? ""}
+                              onChange={(e) => updateChoiceMl(qIdx, cIdx, e.target.value)}
+                              placeholder={`Choice ${cIdx + 1} (Malayalam)`}
+                              className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 focus:outline-none"
+                            />
+                          )}
+                        </div>
                         {q.choices.length > 2 && (
                           <button
                             onClick={() => removeChoice(qIdx, cIdx)}
-                            className="text-red-500 hover:text-red-700 text-sm px-2"
+                            className={`text-red-500 hover:text-red-700 text-sm px-2 ${hasMalayalam ? "self-start mt-1" : ""}`}
                           >
                             ×
                           </button>

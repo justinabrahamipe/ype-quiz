@@ -21,6 +21,7 @@ export async function GET(
       biblePortion: true,
       questionCount: true,
       isPrerequisite: true,
+      hasMalayalam: true,
       startTime: true,
       endTime: true,
       secondsPerQuestion: true,
@@ -46,8 +47,10 @@ export async function GET(
 
   const attempt = await prisma.attempt.findUnique({
     where: { quizId_userId: { quizId, userId: session.user.id } },
-    select: { isComplete: true, archivedAt: true },
+    select: { isComplete: true, archivedAt: true, language: true },
   });
+
+  const live = !!attempt && !attempt.archivedAt;
 
   return NextResponse.json({
     quiz: {
@@ -55,6 +58,7 @@ export async function GET(
       biblePortion: quiz.biblePortion,
       questionCount: quiz.questionCount,
       isPrerequisite: quiz.isPrerequisite,
+      hasMalayalam: quiz.hasMalayalam,
       startTime: quiz.startTime.toISOString(),
       endTime: quiz.endTime.toISOString(),
       secondsPerQuestion: quiz.secondsPerQuestion,
@@ -65,5 +69,6 @@ export async function GET(
     userQualified: !!user?.isQualified,
     hasInProgress: !!attempt && !attempt.isComplete && !attempt.archivedAt,
     hasCompleted: !!attempt && attempt.isComplete && !attempt.archivedAt,
+    attemptLanguage: live ? attempt?.language ?? null : null,
   });
 }

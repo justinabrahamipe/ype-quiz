@@ -47,7 +47,9 @@ type Submission = {
 type Question = {
   id: string;
   questionText: string;
+  questionTextMl?: string | null;
   acceptedAnswers: string[];
+  acceptedAnswersMl?: string[];
   orderIndex: number;
 };
 
@@ -56,6 +58,7 @@ export function QuizSubmissions({
   questions,
   canDelete = false,
   canUnarchive = false,
+  hasMalayalam = false,
   title = "Submissions",
   defaultExpanded = true,
   emptyMessage = "None yet.",
@@ -65,6 +68,7 @@ export function QuizSubmissions({
   questions: Question[];
   canDelete?: boolean;
   canUnarchive?: boolean;
+  hasMalayalam?: boolean;
   title?: string;
   defaultExpanded?: boolean;
   emptyMessage?: string;
@@ -254,7 +258,20 @@ export function QuizSubmissions({
                           <Box sx={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid", borderColor: "text.disabled" }} />
                         )}
                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography variant="caption" component="div" sx={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{q.questionText}</Typography>
+                          {hasMalayalam ? (
+                            <>
+                              <Typography variant="caption" component="div" sx={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                                <Box component="span" sx={{ color: "text.secondary", mr: 0.5 }}>eng:</Box>{q.questionText}
+                              </Typography>
+                              {q.questionTextMl && (
+                                <Typography variant="caption" component="div" sx={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
+                                  <Box component="span" sx={{ color: "text.secondary", mr: 0.5 }}>mal:</Box>{q.questionTextMl}
+                                </Typography>
+                              )}
+                            </>
+                          ) : (
+                            <Typography variant="caption" component="div" sx={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>{q.questionText}</Typography>
+                          )}
                           <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", minWidth: 0 }}>
                             <Typography
                               variant="caption"
@@ -265,6 +282,9 @@ export function QuizSubmissions({
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ wordBreak: "break-word", overflowWrap: "anywhere", minWidth: 0 }}>
                               Correct: {q.acceptedAnswers.join(", ")}
+                              {hasMalayalam && q.acceptedAnswersMl && q.acceptedAnswersMl.length > 0 && (
+                                <> / {q.acceptedAnswersMl.join(", ")}</>
+                              )}
                             </Typography>
                           </Box>
                         </Box>

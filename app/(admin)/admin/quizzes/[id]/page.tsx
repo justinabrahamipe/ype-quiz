@@ -62,7 +62,9 @@ export default async function EditQuizPage({
   const questionProps = quiz.questions.map((q) => ({
     id: q.id,
     questionText: q.questionText,
+    questionTextMl: q.questionTextMl,
     acceptedAnswers: q.acceptedAnswers,
+    acceptedAnswersMl: q.acceptedAnswersMl,
     orderIndex: q.orderIndex,
   }));
 
@@ -120,17 +122,22 @@ export default async function EditQuizPage({
           endTime={quiz.endTime.toISOString()}
           secondsPerQuestion={quiz.secondsPerQuestion}
           isPrerequisite={quiz.isPrerequisite}
+          hasMalayalam={quiz.hasMalayalam}
         />
 
         {/* Questions - inline editable */}
         <QuizQuestions
           quizId={quizId}
+          hasMalayalam={quiz.hasMalayalam}
           questions={quiz.questions.map((q) => ({
             id: q.id,
             questionText: q.questionText,
+            questionTextMl: q.questionTextMl,
             answerType: q.answerType,
             acceptedAnswers: q.acceptedAnswers,
+            acceptedAnswersMl: q.acceptedAnswersMl,
             choices: q.choices,
+            choicesMl: q.choicesMl,
             orderIndex: q.orderIndex,
             maxAnswerLength: q.maxAnswerLength,
           }))}
@@ -143,6 +150,7 @@ export default async function EditQuizPage({
             canDelete={session.user.role === "admin"}
             submissions={submissions.map(toSubmissionShape)}
             questions={questionProps}
+            hasMalayalam={quiz.hasMalayalam}
             title="Submissions"
             defaultExpanded
             emptyMessage="No completed submissions yet."
@@ -153,6 +161,7 @@ export default async function EditQuizPage({
             canDelete={session.user.role === "admin"}
             submissions={inProgress.map(toSubmissionShape)}
             questions={questionProps}
+            hasMalayalam={quiz.hasMalayalam}
             title="In-Progress Attempts"
             defaultExpanded={false}
             emptyMessage="No in-progress attempts."
@@ -163,6 +172,7 @@ export default async function EditQuizPage({
             canUnarchive={session.user.role === "admin"}
             submissions={archived.map(toSubmissionShape)}
             questions={questionProps}
+            hasMalayalam={quiz.hasMalayalam}
             title="Archived"
             defaultExpanded={false}
             emptyMessage="No archived attempts."
