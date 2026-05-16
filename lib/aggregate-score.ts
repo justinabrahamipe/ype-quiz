@@ -18,7 +18,10 @@ const ZERO: UserAggregate = {
  *
  * Definitions (chosen to match the legacy updateOverallScore + processPenalties
  * semantics so display values don't shift):
- *   - totalScore: SUM(attempt.rawScore) over non-archived completed attempts.
+ *   - totalScore: SUM(attempt.rawScore) over non-archived completed attempts
+ *     whose quiz is either the prerequisite OR has already ended. Points from
+ *     in-progress quizzes are withheld so scores don't leak before the window
+ *     closes.
  *   - quizzesAttempted: count of non-archived completed attempts (includes
  *     the qualifying quiz).
  *   - quizzesMissed: count of non-prerequisite quizzes that ended before now
@@ -39,7 +42,15 @@ export async function getUserAggregate(
   const [scoreSum, attempted, eligiblePast, attemptedEligiblePast] =
     await Promise.all([
       prisma.attempt.aggregate({
-        where: { userId, isComplete: true, archivedAt: null },
+        where: {
+          userId,
+          isComplete: true,
+          archivedAt: null,
+          OR: [
+            { quiz: { isPrerequisite: true } },
+            { quiz: { endTime: { lt: now } } },
+          ],
+        },
         _sum: { rawScore: true },
       }),
       prisma.attempt.count({
@@ -99,6 +110,7 @@ export async function getUsersAggregates(
         rawScore: true,
         isComplete: true,
         archivedAt: true,
+        quiz: { select: { isPrerequisite: true, endTime: true } },
       },
     }),
     prisma.quiz.findMany({
@@ -116,7 +128,10 @@ export async function getUsersAggregates(
       if (a.userId !== user.id) continue;
       attemptedQuizIds.add(a.quizId);
       if (a.isComplete && !a.archivedAt) {
-        totalScore += Number(a.rawScore ?? 0);
+        // Withhold points from quizzes whose window is still open so live
+        // scores don't leak to the leaderboard.
+        const scoreVisible = a.quiz.isPrerequisite || a.quiz.endTime < now;
+        if (scoreVisible) totalScore += Number(a.rawScore ?? 0);
         quizzesAttempted++;
       }
     }

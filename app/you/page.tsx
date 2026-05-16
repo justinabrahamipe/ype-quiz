@@ -25,7 +25,7 @@ export default async function YouPage() {
     prisma.attempt.findMany({
       where: { userId, isComplete: true, archivedAt: null },
       include: {
-        quiz: { select: { title: true, isPrerequisite: true, endTime: true, resultsProcessed: true } },
+        quiz: { select: { title: true, isPrerequisite: true, endTime: true } },
       },
       orderBy: { completedAt: "desc" },
     }),
@@ -33,11 +33,9 @@ export default async function YouPage() {
   ]);
 
   const now2 = new Date();
-  // For YouContent we only show points from finalised quizzes (closed regular
-  // quizzes + the prereq), so an in-progress quiz's score isn't revealed early.
-  const totalPoints = attempts
-    .filter((a) => a.quiz.isPrerequisite || a.quiz.endTime < now2)
-    .reduce((sum, a) => sum + Number(a.rawScore ?? 0), 0);
+  // aggregate.totalScore already withholds points from quizzes whose window
+  // is still open (see lib/aggregate-score.ts).
+  const totalPoints = aggregate.totalScore;
 
   const onBoard =
     aggregate.totalScore > 0 ||

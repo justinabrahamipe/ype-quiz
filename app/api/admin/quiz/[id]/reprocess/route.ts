@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { processQuizResults } from "@/lib/scoring";
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
@@ -18,6 +18,9 @@ export async function POST(
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
-  await processQuizResults(quizId);
-  return NextResponse.json({ reprocessed: true });
+  const body = await req.json().catch(() => ({}));
+  const includeOverridden = !!body?.includeOverridden;
+
+  await processQuizResults(quizId, { includeOverridden });
+  return NextResponse.json({ reprocessed: true, includeOverridden });
 }

@@ -74,8 +74,17 @@ export async function backfillAttemptScores(userId: string) {
  * window closes (or after edits) to refresh per-answer isCorrect and the
  * attempt rawScore. Aggregate user scores are now derived live from these
  * values, so there's nothing else to update here.
+ *
+ * By default, answers an admin has manually overridden are left alone — they
+ * keep their existing isCorrect and the override flag. Pass
+ * `includeOverridden: true` to also re-grade those answers (and clear the
+ * override flag), which is useful when the override was based on stale
+ * accepted-answers data.
  */
-export async function processQuizResults(quizId: string) {
+export async function processQuizResults(
+  quizId: string,
+  { includeOverridden = false }: { includeOverridden?: boolean } = {}
+) {
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
   if (!quiz) return;
 
@@ -93,7 +102,7 @@ export async function processQuizResults(quizId: string) {
     let correctCount = 0;
 
     for (const ans of attempt.answers) {
-      if (ans.manuallyOverridden) {
+      if (ans.manuallyOverridden && !includeOverridden) {
         if (ans.isCorrect) correctCount++;
         continue;
       }
@@ -102,7 +111,7 @@ export async function processQuizResults(quizId: string) {
       if (!question || !ans.submittedText) {
         await prisma.answer.update({
           where: { id: ans.id },
-          data: { isCorrect: false },
+          data: { isCorrect: false, manuallyOverridden: false },
         });
         continue;
       }
@@ -115,7 +124,7 @@ export async function processQuizResults(quizId: string) {
 
       await prisma.answer.update({
         where: { id: ans.id },
-        data: { isCorrect: correct },
+        data: { isCorrect: correct, manuallyOverridden: false },
       });
 
       if (correct) correctCount++;
