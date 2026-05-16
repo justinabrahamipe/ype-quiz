@@ -1,5 +1,16 @@
 import { prisma } from "./db";
 import { isCorrect } from "./answer-matcher";
+import type { Question } from "@prisma/client";
+
+// Malayalam MCQ uses the parallel acceptedAnswersMl. Numbers are language-neutral
+// and reuse acceptedAnswers in either language. Text only exists in monolingual
+// quizzes (bilingual validation rejects it).
+function pickAccepted(question: Question, lang: "en" | "ml"): string[] {
+  if (lang === "ml" && question.answerType === "mcq" && question.acceptedAnswersMl.length > 0) {
+    return question.acceptedAnswersMl;
+  }
+  return question.acceptedAnswers;
+}
 
 /**
  * Backfill rawScore for any of a user's completed attempts that still have
@@ -15,6 +26,7 @@ export async function backfillAttemptScores(userId: string) {
   });
 
   for (const attempt of attempts) {
+    const lang = attempt.language === "ml" ? "ml" : "en";
     let correct = 0;
     for (const question of attempt.quiz.questions) {
       const userAnswers = attempt.answers.filter((a) => a.questionId === question.id);
@@ -22,8 +34,8 @@ export async function backfillAttemptScores(userId: string) {
       if (userAnswer?.submittedText) {
         const ok = isCorrect(
           userAnswer.submittedText,
-          question.acceptedAnswers,
-          question.answerType as "text" | "number"
+          pickAccepted(question, lang),
+          question.answerType as "text" | "number" | "mcq"
         );
         for (const ans of userAnswers) {
           if (ans.manuallyOverridden) {
@@ -77,6 +89,7 @@ export async function processQuizResults(quizId: string) {
   });
 
   for (const attempt of allAttempts) {
+    const lang = attempt.language === "ml" ? "ml" : "en";
     let correctCount = 0;
 
     for (const ans of attempt.answers) {
@@ -96,8 +109,8 @@ export async function processQuizResults(quizId: string) {
 
       const correct = isCorrect(
         ans.submittedText,
-        question.acceptedAnswers,
-        question.answerType as "text" | "number"
+        pickAccepted(question, lang),
+        question.answerType as "text" | "number" | "mcq"
       );
 
       await prisma.answer.update({

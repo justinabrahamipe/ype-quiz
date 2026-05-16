@@ -7,6 +7,7 @@ import { EditTimes } from "./edit-times";
 import { QuizQuestions } from "./quiz-questions";
 import { QuizSubmissions } from "./quiz-submissions";
 import { DeleteQuiz } from "./delete-quiz";
+import { ReprocessResults } from "./reprocess-results";
 
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || "mahanaimype@gmail.com";
 
@@ -178,6 +179,8 @@ export default async function EditQuizPage({
             emptyMessage="No archived attempts."
           />
         </div>
+
+        <ReprocessResults quizId={quizId} />
 
         {session.user.email === SUPER_ADMIN_EMAIL && (
           <DeleteQuiz quizId={quizId} quizTitle={quiz.title} />
