@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { QualifyingQuizButton } from "@/components/qualifying-quiz-button";
+import { ExportEmailsButton } from "./export-emails-button";
 
 export default async function AdminDashboard() {
   const session = await auth();
@@ -87,6 +88,7 @@ export default async function AdminDashboard() {
               Manage Users
             </Link>
           )}
+          {isAdmin && <ExportEmailsButton />}
           {!hasPrerequisite && <QualifyingQuizButton />}
         </div>
 
