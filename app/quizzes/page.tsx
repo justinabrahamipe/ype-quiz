@@ -26,6 +26,7 @@ export default async function QuizzesPage() {
 
   const [quizzes, userAttempts] = await Promise.all([
     prisma.quiz.findMany({
+      where: { isDraft: false },
       orderBy: { startTime: "desc" },
       take: 20,
       include: { _count: { select: { attempts: true } } },

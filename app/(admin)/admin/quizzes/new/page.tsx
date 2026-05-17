@@ -351,6 +351,73 @@ export default function CreateQuizPage() {
     });
   };
 
+  const handleSaveDraft = async () => {
+    if (!title.trim() || !biblePortion.trim()) {
+      toast("Title and bible portion are required to save a draft", "error");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          biblePortion,
+          startDateTime: isPrerequisite ? null : startDateTime || null,
+          endDateTime: isPrerequisite ? null : endDateTime || null,
+          questionCount: questions.length,
+          secondsPerQuestion,
+          isPrerequisite,
+          hasMalayalam,
+          isDraft: true,
+          questions: questions.map((q) => {
+            if (q.answerType === "mcq") {
+              const indices = q.choices
+                .map((c, i) => ({ c: c.trim(), m: q.choicesMl[i]?.trim() ?? "", i }))
+                .filter((p) => p.c);
+              const choices = indices.map((p) => p.c);
+              const choicesMl = hasMalayalam ? indices.map((p) => p.m) : [];
+              const correct = q.choices[q.correctIndex]?.trim() || "";
+              const correctMl = hasMalayalam ? q.choicesMl[q.correctIndex]?.trim() || "" : "";
+              return {
+                questionText: q.questionText,
+                questionTextMl: hasMalayalam ? q.questionTextMl.trim() : null,
+                answerType: q.answerType,
+                acceptedAnswers: correct ? [correct] : [],
+                acceptedAnswersMl: hasMalayalam && correctMl ? [correctMl] : [],
+                choices,
+                choicesMl,
+                maxAnswerLength: null,
+              };
+            }
+            return {
+              questionText: q.questionText,
+              questionTextMl: hasMalayalam ? q.questionTextMl.trim() : null,
+              answerType: q.answerType,
+              acceptedAnswers: q.acceptedAnswers.filter((a) => a.trim()),
+              acceptedAnswersMl: [],
+              choices: [],
+              choicesMl: [],
+              maxAnswerLength: q.maxAnswerLength.trim() === "" ? null : Number(q.maxAnswerLength),
+            };
+          }),
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast("Draft saved", "success");
+        router.push(`/admin/quizzes/${data.id}`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast(data.error || "Failed to save draft", "error");
+      }
+    } catch {
+      toast("Failed to save draft", "error");
+    }
+    setSubmitting(false);
+  };
+
   const handleSubmit = async () => {
     // Validate
     for (let i = 0; i < questions.length; i++) {
@@ -602,12 +669,25 @@ export default function CreateQuizPage() {
                 <p className="text-xs text-slate-400">Each question must be entered in both languages. Only MCQ and number types are allowed.</p>
               </div>
             </label>
-            <button
-              onClick={handleNext}
-              className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700"
-            >
-              Next: Add Questions
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleSaveDraft}
+                disabled={submitting}
+                className="sm:flex-1 py-3 rounded-xl border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-50"
+              >
+                {submitting ? "Saving..." : "Save as Draft"}
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={submitting}
+                className="sm:flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
+              >
+                Next: Add Questions
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+              Save now and fill in the questions later — drafts stay hidden from members.
+            </p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -769,21 +849,32 @@ export default function CreateQuizPage() {
               </div>
             ))}
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-600 font-medium"
+                disabled={submitting}
+                className="sm:flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-600 font-medium disabled:opacity-50"
               >
                 Back
               </button>
               <button
+                onClick={handleSaveDraft}
+                disabled={submitting}
+                className="sm:flex-1 py-3 rounded-xl border border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 font-semibold hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-50"
+              >
+                {submitting ? "Saving..." : "Save as Draft"}
+              </button>
+              <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
+                className="sm:flex-1 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
               >
-                {submitting ? "Creating..." : "Publish Quiz"}
+                {submitting ? "Publishing..." : "Publish Quiz"}
               </button>
             </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+              Drafts stay hidden from members. You can resume editing later from the admin dashboard.
+            </p>
           </div>
         )}
       </main>

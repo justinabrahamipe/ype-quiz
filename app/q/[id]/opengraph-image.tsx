@@ -17,8 +17,8 @@ export default async function QuizOgImage({
   try {
     const { id } = await params;
     const [quiz, logo] = await Promise.all([
-      prisma.quiz.findUnique({
-        where: { id },
+      prisma.quiz.findFirst({
+        where: { id, isDraft: false },
         select: {
           title: true,
           biblePortion: true,

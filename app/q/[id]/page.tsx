@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 async function getQuiz(id: string) {
-  return prisma.quiz.findUnique({
+  const quiz = await prisma.quiz.findUnique({
     where: { id },
     select: {
       id: true,
@@ -19,8 +19,11 @@ async function getQuiz(id: string) {
       startTime: true,
       endTime: true,
       isPrerequisite: true,
+      isDraft: true,
     },
   });
+  if (!quiz || quiz.isDraft) return null;
+  return quiz;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {

@@ -25,6 +25,7 @@ export async function GET(
       startTime: true,
       endTime: true,
       secondsPerQuestion: true,
+      isDraft: true,
     },
   });
 
@@ -32,13 +33,16 @@ export async function GET(
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
+  const isStaff =
+    session.user.role === "admin" || session.user.role === "quizmaster";
+  if (quiz.isDraft && !isStaff) {
+    return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+  }
+
   const now = new Date();
   let status: "upcoming" | "active" | "ended" = "active";
   if (now < quiz.startTime) status = "upcoming";
   else if (now > quiz.endTime) status = "ended";
-
-  const isStaff =
-    session.user.role === "admin" || session.user.role === "quizmaster";
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },

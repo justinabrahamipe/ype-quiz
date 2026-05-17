@@ -20,7 +20,7 @@ export default async function ReviewPage({
     include: { questions: { orderBy: { orderIndex: "asc" } } },
   });
 
-  if (!quiz) redirect("/");
+  if (!quiz || quiz.isDraft) redirect("/");
 
   const attempt = await prisma.attempt.findUnique({
     where: { quizId_userId: { quizId, userId: session.user.id } },

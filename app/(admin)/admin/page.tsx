@@ -38,7 +38,8 @@ export default async function AdminDashboard() {
     completedGroups.map((g) => [g.quizId, g._count._all])
   );
 
-  const getStatus = (quiz: { startTime: Date; endTime: Date; isPrerequisite: boolean }) => {
+  const getStatus = (quiz: { startTime: Date; endTime: Date; isPrerequisite: boolean; isDraft: boolean }) => {
+    if (quiz.isDraft) return "Draft";
     if (quiz.isPrerequisite) return "Qualifying";
     if (now < quiz.startTime) return "Upcoming";
     if (now <= quiz.endTime) return "Active";
@@ -121,6 +122,8 @@ export default async function AdminDashboard() {
                       ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                       : status === "Qualifying"
                       ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                      : status === "Draft"
+                      ? "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-dashed border-slate-400 dark:border-slate-500"
                       : "bg-[var(--surface)] text-[var(--muted)]"
                   }`}
                 >

@@ -10,6 +10,7 @@ export async function GET() {
     where: {
       endTime: { lte: now, gte: oneDayAgo },
       resultsProcessed: false,
+      isDraft: false,
     },
   });
 

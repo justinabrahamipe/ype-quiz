@@ -15,7 +15,7 @@ export default async function SubmittedPage({
   const { id: quizId } = await params;
 
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
-  if (!quiz) redirect("/");
+  if (!quiz || quiz.isDraft) redirect("/");
 
   // Prereq quizzes and closed regular quizzes both use /review as the canonical
   // "post-attempt" view.

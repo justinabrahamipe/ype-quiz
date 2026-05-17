@@ -8,6 +8,7 @@ import { QuizQuestions } from "./quiz-questions";
 import { QuizSubmissions } from "./quiz-submissions";
 import { DeleteQuiz } from "./delete-quiz";
 import { ReprocessResults } from "./reprocess-results";
+import { PublishDraft } from "./publish-draft";
 
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || "mahanaimype@gmail.com";
 
@@ -73,9 +74,18 @@ export default async function EditQuizPage({
     <div className="min-h-screen bg-background">
       <Header />
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        {quiz.isDraft && <PublishDraft quizId={quizId} />}
+
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{quiz.title}</h1>
+            <h1 className="text-2xl font-bold flex items-center gap-2 flex-wrap">
+              {quiz.title}
+              {quiz.isDraft && (
+                <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-dashed border-slate-400 dark:border-slate-500">
+                  Draft
+                </span>
+              )}
+            </h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm">
               {quiz.biblePortion}
             </p>

@@ -14,11 +14,48 @@ export async function PATCH(
 
   const { id: quizId } = await params;
   const body = await req.json();
-  const { startTime, endTime, title, biblePortion, questions, secondsPerQuestion, hasMalayalam } = body;
+  const { startTime, endTime, title, biblePortion, questions, secondsPerQuestion, hasMalayalam, isDraft } = body;
 
   const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
   if (!quiz) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+  }
+
+  // Publish flow: validate full quiz before flipping isDraft off.
+  if (isDraft === false && quiz.isDraft) {
+    const allQuestions = await prisma.question.findMany({ where: { quizId }, orderBy: { orderIndex: "asc" } });
+    if (allQuestions.length === 0) {
+      return NextResponse.json({ error: "Add at least one question before publishing" }, { status: 400 });
+    }
+    const willHaveMalayalam = hasMalayalam !== undefined ? !!hasMalayalam : quiz.hasMalayalam;
+    const willBePrereq = quiz.isPrerequisite;
+    const effectiveStart = startTime ? new Date(startTime) : quiz.startTime;
+    const effectiveEnd = endTime ? new Date(endTime) : quiz.endTime;
+    if (!willBePrereq && effectiveEnd <= effectiveStart) {
+      return NextResponse.json({ error: "Set valid start and end times before publishing" }, { status: 400 });
+    }
+    for (let i = 0; i < allQuestions.length; i++) {
+      const q = allQuestions[i];
+      if (!q.questionText?.trim()) {
+        return NextResponse.json({ error: `Question ${i + 1}: question text is required` }, { status: 400 });
+      }
+      if (q.answerType === "mcq") {
+        if (q.choices.filter((c) => c.trim()).length < 2) {
+          return NextResponse.json({ error: `Question ${i + 1}: MCQ needs at least 2 choices` }, { status: 400 });
+        }
+        if (q.acceptedAnswers.length === 0) {
+          return NextResponse.json({ error: `Question ${i + 1}: mark a correct choice` }, { status: 400 });
+        }
+      } else if (q.acceptedAnswers.length === 0) {
+        return NextResponse.json({ error: `Question ${i + 1}: at least one accepted answer required` }, { status: 400 });
+      }
+      if (willHaveMalayalam) {
+        const err = validateBilingualQuestion(q);
+        if (err) {
+          return NextResponse.json({ error: `Question ${i + 1}: ${err}` }, { status: 400 });
+        }
+      }
+    }
   }
 
   const nextHasMalayalam = hasMalayalam !== undefined ? !!hasMalayalam : quiz.hasMalayalam;
@@ -53,6 +90,9 @@ export async function PATCH(
   }
   if (hasMalayalam !== undefined) {
     quizUpdates.hasMalayalam = !!hasMalayalam;
+  }
+  if (isDraft !== undefined) {
+    quizUpdates.isDraft = !!isDraft;
   }
 
   if (quizUpdates.startTime && quizUpdates.endTime && (quizUpdates.endTime as Date) <= (quizUpdates.startTime as Date)) {

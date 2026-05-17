@@ -52,6 +52,7 @@ model Quiz {
   secondsPerQuestion  Int        @default(120)
   isPrerequisite      Boolean    @default(false)
   hasMalayalam        Boolean    @default(false)
+  isDraft             Boolean    @default(false)
   createdBy        String
   creator          User       @relation(fields: [createdBy], references: [id])
   createdAt        DateTime   @default(now())

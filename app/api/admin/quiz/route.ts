@@ -11,16 +11,39 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { title, biblePortion, startDateTime, endDateTime, questionCount, questions, isPrerequisite, secondsPerQuestion, hasMalayalam } = body;
+  const { title, biblePortion, startDateTime, endDateTime, questionCount, questions, isPrerequisite, secondsPerQuestion, hasMalayalam, isDraft } = body;
 
-  if (!title || !biblePortion || !startDateTime || !endDateTime || !questionCount || !questions?.length) {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  type IncomingQuestion = {
+    questionText: string;
+    questionTextMl?: string | null;
+    answerType: string;
+    acceptedAnswers: string[];
+    acceptedAnswersMl?: string[];
+    choices?: string[];
+    choicesMl?: string[];
+    maxAnswerLength?: number | null;
+  };
+  const draft = !!isDraft;
+  const questionList: IncomingQuestion[] = Array.isArray(questions) ? questions : [];
+
+  if (!title || !biblePortion) {
+    return NextResponse.json({ error: "Title and bible portion are required" }, { status: 400 });
   }
 
-  const start = new Date(startDateTime);
-  const end = new Date(endDateTime);
+  if (!draft) {
+    if (!startDateTime || !endDateTime || !questionCount || !questionList.length) {
+      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+  }
 
-  if (end <= start) {
+  const start = startDateTime ? new Date(startDateTime) : new Date();
+  // Drafts may not have an end time yet; we use a placeholder a year out so
+  // existing time-based queries keep working (drafts are hidden anyway).
+  const end = endDateTime
+    ? new Date(endDateTime)
+    : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+  if (!draft && end <= start) {
     return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
   }
 
@@ -29,9 +52,9 @@ export async function POST(req: NextRequest) {
       ? Math.floor(secondsPerQuestion)
       : 120;
 
-  if (hasMalayalam) {
-    for (let i = 0; i < questions.length; i++) {
-      const err = validateBilingualQuestion(questions[i]);
+  if (!draft && hasMalayalam) {
+    for (let i = 0; i < questionList.length; i++) {
+      const err = validateBilingualQuestion(questionList[i]);
       if (err) {
         return NextResponse.json({ error: `Question ${i + 1}: ${err}` }, { status: 400 });
       }
@@ -44,40 +67,27 @@ export async function POST(req: NextRequest) {
       biblePortion,
       startTime: start,
       endTime: end,
-      questionCount,
+      questionCount: questionCount ?? questionList.length,
       secondsPerQuestion: normalizedSeconds,
       isPrerequisite: !!isPrerequisite,
       hasMalayalam: !!hasMalayalam,
+      isDraft: draft,
       createdBy: session.user.id,
       questions: {
-        create: questions.map(
-          (
-            q: {
-              questionText: string;
-              questionTextMl?: string | null;
-              answerType: string;
-              acceptedAnswers: string[];
-              acceptedAnswersMl?: string[];
-              choices?: string[];
-              choicesMl?: string[];
-              maxAnswerLength?: number | null;
-            },
-            i: number
-          ) => ({
-            questionText: q.questionText,
-            questionTextMl: hasMalayalam ? (q.questionTextMl?.trim() || null) : null,
-            answerType: q.answerType as AnswerType,
-            acceptedAnswers: q.acceptedAnswers,
-            acceptedAnswersMl: hasMalayalam && Array.isArray(q.acceptedAnswersMl) ? q.acceptedAnswersMl : [],
-            choices: Array.isArray(q.choices) ? q.choices.filter((c) => c.trim()) : [],
-            choicesMl: hasMalayalam && Array.isArray(q.choicesMl) ? q.choicesMl.filter((c) => c.trim()) : [],
-            orderIndex: i,
-            maxAnswerLength:
-              q.maxAnswerLength != null && Number.isFinite(q.maxAnswerLength) && q.maxAnswerLength > 0
-                ? Math.floor(q.maxAnswerLength)
-                : null,
-          })
-        ),
+        create: questionList.map((q, i) => ({
+          questionText: q.questionText ?? "",
+          questionTextMl: hasMalayalam ? (q.questionTextMl?.trim() || null) : null,
+          answerType: (q.answerType || "mcq") as AnswerType,
+          acceptedAnswers: Array.isArray(q.acceptedAnswers) ? q.acceptedAnswers : [],
+          acceptedAnswersMl: hasMalayalam && Array.isArray(q.acceptedAnswersMl) ? q.acceptedAnswersMl : [],
+          choices: Array.isArray(q.choices) ? q.choices.filter((c) => c.trim()) : [],
+          choicesMl: hasMalayalam && Array.isArray(q.choicesMl) ? q.choicesMl.filter((c) => c.trim()) : [],
+          orderIndex: i,
+          maxAnswerLength:
+            q.maxAnswerLength != null && Number.isFinite(q.maxAnswerLength) && q.maxAnswerLength > 0
+              ? Math.floor(q.maxAnswerLength)
+              : null,
+        })),
       },
     },
     include: { questions: true },
