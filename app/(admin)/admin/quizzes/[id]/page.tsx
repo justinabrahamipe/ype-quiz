@@ -9,6 +9,7 @@ import { QuizSubmissions } from "./quiz-submissions";
 import { DeleteQuiz } from "./delete-quiz";
 import { ReprocessResults } from "./reprocess-results";
 import { PublishDraft } from "./publish-draft";
+import { RemindNonAttendees } from "./remind-non-attendees";
 
 const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || "mahanaimype@gmail.com";
 
@@ -156,6 +157,12 @@ export default async function EditQuizPage({
 
         {/* Submissions - expandable with answer editing */}
         <div className="space-y-3">
+          {!quiz.isPrerequisite && !quiz.isDraft && (
+            <div className="flex flex-wrap gap-3">
+              <RemindNonAttendees quizId={quizId} quizTitle={quiz.title} />
+            </div>
+          )}
+
           <QuizSubmissions
             quizId={quizId}
             canDelete={session.user.role === "admin"}
