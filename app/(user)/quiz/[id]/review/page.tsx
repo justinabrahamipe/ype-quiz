@@ -35,10 +35,10 @@ export default async function ReviewPage({
     if (!activeAttempt?.isComplete) {
       redirect(`/quiz/${quizId}`);
     }
-  } else if (new Date() < quiz.endTime) {
-    // Regular quiz, window still open: results aren't published yet, so show
-    // the "submitted" confirmation if they've finished, otherwise send them
-    // to the attempt page.
+  } else if (new Date() < quiz.endTime && !quiz.resultsProcessed) {
+    // Regular quiz, window still open and not yet finalised: results aren't
+    // published yet, so show the "submitted" confirmation if they've finished,
+    // otherwise send them to the attempt page.
     if (activeAttempt?.isComplete) {
       redirect(`/quiz/${quizId}/submitted`);
     }

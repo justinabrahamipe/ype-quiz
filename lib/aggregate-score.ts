@@ -49,6 +49,7 @@ export async function getUserAggregate(
           OR: [
             { quiz: { isPrerequisite: true } },
             { quiz: { endTime: { lt: now } } },
+            { quiz: { resultsProcessed: true } },
           ],
         },
         _sum: { rawScore: true },
@@ -63,6 +64,7 @@ export async function getUserAggregate(
       prisma.quiz.count({
         where: {
           isPrerequisite: false,
+          isDraft: false,
           endTime: { lt: now },
           startTime: { gt: user.createdAt },
         },
@@ -72,6 +74,7 @@ export async function getUserAggregate(
           userId,
           quiz: {
             isPrerequisite: false,
+            isDraft: false,
             endTime: { lt: now },
             startTime: { gt: user.createdAt },
           },
@@ -110,11 +113,11 @@ export async function getUsersAggregates(
         rawScore: true,
         isComplete: true,
         archivedAt: true,
-        quiz: { select: { isPrerequisite: true, endTime: true } },
+        quiz: { select: { isPrerequisite: true, endTime: true, resultsProcessed: true } },
       },
     }),
     prisma.quiz.findMany({
-      where: { isPrerequisite: false, endTime: { lt: now } },
+      where: { isPrerequisite: false, isDraft: false, endTime: { lt: now } },
       select: { id: true, startTime: true },
     }),
   ]);
@@ -128,9 +131,10 @@ export async function getUsersAggregates(
       if (a.userId !== user.id) continue;
       attemptedQuizIds.add(a.quizId);
       if (a.isComplete && !a.archivedAt) {
-        // Withhold points from quizzes whose window is still open so live
-        // scores don't leak to the leaderboard.
-        const scoreVisible = a.quiz.isPrerequisite || a.quiz.endTime < now;
+        // Show scores once the quiz window has closed OR results have been
+        // explicitly processed by an admin (resultsProcessed guards against
+        // wrong endTime values like a typo in the year).
+        const scoreVisible = a.quiz.isPrerequisite || a.quiz.endTime < now || a.quiz.resultsProcessed;
         if (scoreVisible) totalScore += Number(a.rawScore ?? 0);
         quizzesAttempted++;
       }

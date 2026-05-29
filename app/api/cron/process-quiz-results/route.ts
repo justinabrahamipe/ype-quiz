@@ -4,11 +4,12 @@ import { processQuizResults } from "@/lib/scoring";
 
 export async function GET() {
   const now = new Date();
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
+  // Process all ended quizzes that haven't been processed yet — no time window
+  // so quizzes missed by previous runs are always caught.
   const quizzes = await prisma.quiz.findMany({
     where: {
-      endTime: { lte: now, gte: oneDayAgo },
+      endTime: { lte: now },
       resultsProcessed: false,
       isDraft: false,
     },

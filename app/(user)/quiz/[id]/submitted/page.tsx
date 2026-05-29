@@ -18,8 +18,9 @@ export default async function SubmittedPage({
   if (!quiz || quiz.isDraft) redirect("/");
 
   // Prereq quizzes and closed regular quizzes both use /review as the canonical
-  // "post-attempt" view.
-  if (quiz.isPrerequisite || new Date() > quiz.endTime) {
+  // "post-attempt" view. resultsProcessed catches quizzes where the endTime was
+  // entered with the wrong year but the admin has already finalised results.
+  if (quiz.isPrerequisite || new Date() > quiz.endTime || quiz.resultsProcessed) {
     redirect(`/quiz/${quizId}/review`);
   }
 
