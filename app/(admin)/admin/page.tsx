@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Header } from "@/components/header";
 import { QualifyingQuizButton } from "@/components/qualifying-quiz-button";
 import { ExportEmailsButton } from "./export-emails-button";
+import { NewSeasonButton } from "./new-season-button";
+import { DeleteSeasonButton } from "./delete-season-button";
+import { RenameSeasonButton } from "./rename-season-button";
 
 export default async function AdminDashboard() {
   const session = await auth();
@@ -13,7 +16,7 @@ export default async function AdminDashboard() {
 
   const now = new Date();
 
-  const [totalUsers, totalQuizzes, activeQuiz, quizzes, hasPrerequisite, completedGroups] = await Promise.all([
+  const [totalUsers, totalQuizzes, activeQuiz, quizzes, hasPrerequisite, completedGroups, appSettings, seasonStats, seasonLabelsRaw] = await Promise.all([
     prisma.user.count(),
     prisma.quiz.count(),
     prisma.quiz.findFirst({
@@ -33,7 +36,25 @@ export default async function AdminDashboard() {
       where: { isComplete: true, archivedAt: null },
       _count: { _all: true },
     }),
+    prisma.appSettings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
+    prisma.quiz.groupBy({
+      by: ["season"],
+      where: { isDraft: false, isPrerequisite: false },
+      _count: { id: true },
+      orderBy: { season: "asc" },
+    }),
+    prisma.seasonLabel.findMany(),
   ]);
+
+  const currentSeason = appSettings.currentSeason;
+  const seasonLabels = Object.fromEntries(seasonLabelsRaw.map((l) => [l.season, l.name]));
+
+  // Ensure the current season always appears even if it has no quizzes yet
+  const allSeasonStats = seasonStats.some((s) => s.season === currentSeason)
+    ? seasonStats
+    : [...seasonStats, { season: currentSeason, _count: { id: 0 } }].sort(
+        (a, b) => a.season - b.season
+      );
 
   const completedByQuiz = new Map(
     completedGroups.map((g) => [g.quizId, g._count._all])
@@ -54,7 +75,7 @@ export default async function AdminDashboard() {
         <h1 className="text-2xl font-bold gradient-text">Admin Dashboard</h1>
 
         {/* Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="card p-5 gradient-card">
             <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Total Users</p>
             <p className="text-3xl font-bold mt-2 gradient-text">{totalUsers}</p>
@@ -68,6 +89,10 @@ export default async function AdminDashboard() {
             <p className="text-lg font-bold mt-2 truncate">
               {activeQuiz?.title || "None"}
             </p>
+          </div>
+          <div className="card p-5 gradient-card">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--muted)]">Current Season</p>
+            <p className="text-3xl font-bold mt-2 gradient-text">{currentSeason}</p>
           </div>
         </div>
 
@@ -90,7 +115,53 @@ export default async function AdminDashboard() {
           )}
           {isAdmin && <ExportEmailsButton />}
           {!hasPrerequisite && <QualifyingQuizButton />}
+          {isAdmin && <NewSeasonButton currentSeason={currentSeason} />}
         </div>
+
+        {/* Seasons */}
+        {isAdmin && allSeasonStats.length > 0 && (
+          <div className="card overflow-hidden">
+            <div className="px-4 sm:px-5 py-3 border-b border-[var(--card-border)]">
+              <p className="text-sm font-semibold text-[var(--muted)] uppercase tracking-wider">Seasons</p>
+            </div>
+            {allSeasonStats.map((s) => (
+              <div
+                key={s.season}
+                className="flex items-center gap-3 px-4 sm:px-5 py-3 border-b border-[var(--card-border)] last:border-0"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium">
+                    {seasonLabels[s.season] ?? `Season ${s.season}`}
+                    {s.season === currentSeason && (
+                      <span className="ml-2 text-xs font-normal text-[var(--accent)]">current</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-[var(--muted)] mt-0.5">
+                    Season {s.season} · {s._count.id} {s._count.id === 1 ? "quiz" : "quizzes"}
+                  </p>
+                </div>
+                <a
+                  href={`/leaderboard?s=${s.season}`}
+                  className="text-xs text-[var(--accent)] hover:underline shrink-0"
+                >
+                  Leaderboard
+                </a>
+                <RenameSeasonButton
+                  season={s.season}
+                  currentName={seasonLabels[s.season] ?? ""}
+                />
+                {(s.season !== 1 || currentSeason > 1) && (
+                  <DeleteSeasonButton
+                    season={s.season}
+                    quizCount={s._count.id}
+                    isCurrent={s.season === currentSeason}
+                    previousSeason={s.season - 1}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Quiz list */}
         <div className="card overflow-hidden">

@@ -286,7 +286,7 @@ export function QuizQuestions({ quizId, questions: initial, hasMalayalam = false
   };
 
   return (
-    <Accordion defaultExpanded={!isMobile} disableGutters elevation={0} sx={{ border: "1px solid", borderColor: "divider", "&:before": { display: "none" }, overflow: "hidden" }}>
+    <Accordion defaultExpanded={false} disableGutters elevation={0} sx={{ border: "1px solid", borderColor: "divider", "&:before": { display: "none" }, overflow: "hidden" }}>
       <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", pr: 1 }}>
           <Typography variant="h6" fontWeight={600}>Questions ({initial.length})</Typography>

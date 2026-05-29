@@ -18,6 +18,7 @@ import Link from "next/link";
 import CardActionArea from "@mui/material/CardActionArea";
 import { MessageUsLink } from "@/components/message-us-link";
 import { ShareButton } from "@/components/share-button";
+import { useRouter } from "next/navigation";
 
 type Props = {
   userId: string;
@@ -32,6 +33,10 @@ type Props = {
   rank: number;
   tiedCount?: number;
   totalMembers: number;
+  seasons?: number[];
+  selectedSeason?: number;
+  currentSeason?: number;
+  seasonLabels?: Record<number, string>;
   recentAttempts: {
     id: string;
     quizId: string;
@@ -46,8 +51,20 @@ export function YouContent(props: Props) {
   const {
     userId, name, email, image, isQualified, joinedAt,
     totalScore, quizzesAttempted, quizzesMissed,
-    rank, tiedCount = 0, totalMembers, recentAttempts,
+    rank, tiedCount = 0, totalMembers,
+    seasons = [], selectedSeason, currentSeason, seasonLabels = {},
+    recentAttempts,
   } = props;
+  const getSeasonName = (s: number) => seasonLabels[s] ?? `Season ${s}`;
+  const router = useRouter();
+
+  const handleSeasonChange = (s: number | "all") => {
+    if (s === "all") {
+      router.push("/you?s=all");
+    } else {
+      router.push(s === currentSeason ? "/you" : `/you?s=${s}`);
+    }
+  };
 
   const shareText = (() => {
     const lines: string[] = [];
@@ -117,6 +134,36 @@ export function YouContent(props: Props) {
           />
         </CardContent>
       </Card>
+
+      {/* Season selector — only shown when more than one season exists */}
+      {seasons.length > 1 && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, minWidth: 48 }}>
+            Season
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            {seasons.map((s) => {
+              const isSelected = s === selectedSeason;
+              const isCurrent = s === currentSeason;
+              return (
+                <Chip
+                  key={s}
+                  label={isCurrent ? `${getSeasonName(s)} ✦` : getSeasonName(s)}
+                  size="small"
+                  color={isSelected || isCurrent ? "primary" : "default"}
+                  variant={isSelected ? "filled" : "outlined"}
+                  onClick={() => handleSeasonChange(s)}
+                  sx={{
+                    cursor: "pointer",
+                    fontWeight: isSelected ? 700 : 500,
+                    opacity: isSelected ? 1 : isCurrent ? 0.85 : 0.65,
+                  }}
+                />
+              );
+            })}
+          </Box>
+        </Box>
+      )}
 
       {/* Stats Grid */}
       <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>

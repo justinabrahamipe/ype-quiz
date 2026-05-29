@@ -13,23 +13,26 @@ const ZERO: UserAggregate = {
 };
 
 /**
+ * Whether the prerequisite (qualifying) quiz score counts toward a season's
+ * total. It counts for Season 1 (or when no season filter is applied) but not
+ * for Season 2 and above — by design, fresh seasons start without the
+ * qualifier bonus.
+ */
+function prereqCountsForSeason(season?: number): boolean {
+  return season === undefined || season <= 1;
+}
+
+/**
  * Live-compute a user's leaderboard aggregates from the raw response/attempt
  * tables. Replaces the previously-cached OverallScore row.
  *
- * Definitions (chosen to match the legacy updateOverallScore + processPenalties
- * semantics so display values don't shift):
- *   - totalScore: SUM(attempt.rawScore) over non-archived completed attempts
- *     whose quiz is either the prerequisite OR has already ended. Points from
- *     in-progress quizzes are withheld so scores don't leak before the window
- *     closes.
- *   - quizzesAttempted: count of non-archived completed attempts (includes
- *     the qualifying quiz).
- *   - quizzesMissed: count of non-prerequisite quizzes that ended before now
- *     AND started after the user joined, for which the user has no attempt at
- *     all (matches the old penalty processor's eligibility check).
+ * Pass an optional `season` number to scope scores to a specific season.
+ * When omitted all seasons are included (backward-compatible).
+ * From Season 2 onwards the prerequisite quiz score is excluded.
  */
 export async function getUserAggregate(
-  userId: string
+  userId: string,
+  season?: number
 ): Promise<UserAggregate> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -38,6 +41,8 @@ export async function getUserAggregate(
   if (!user) return ZERO;
 
   const now = new Date();
+  const seasonFilter = season !== undefined ? { season } : {};
+  const includePrereq = prereqCountsForSeason(season);
 
   const [scoreSum, attempted, eligiblePast, attemptedEligiblePast] =
     await Promise.all([
@@ -47,9 +52,9 @@ export async function getUserAggregate(
           isComplete: true,
           archivedAt: null,
           OR: [
-            { quiz: { isPrerequisite: true } },
-            { quiz: { endTime: { lt: now } } },
-            { quiz: { resultsProcessed: true } },
+            ...(includePrereq ? [{ quiz: { isPrerequisite: true } }] : []),
+            { quiz: { isPrerequisite: false, endTime: { lt: now }, ...seasonFilter } },
+            { quiz: { isPrerequisite: false, resultsProcessed: true, ...seasonFilter } },
           ],
         },
         _sum: { rawScore: true },
@@ -59,6 +64,13 @@ export async function getUserAggregate(
           userId,
           isComplete: true,
           archivedAt: null,
+          ...(season !== undefined
+            ? {
+                quiz: includePrereq
+                  ? { OR: [{ isPrerequisite: true }, { isPrerequisite: false, season }] }
+                  : { isPrerequisite: false, season },
+              }
+            : {}),
         },
       }),
       prisma.quiz.count({
@@ -67,6 +79,7 @@ export async function getUserAggregate(
           isDraft: false,
           endTime: { lt: now },
           startTime: { gt: user.createdAt },
+          ...seasonFilter,
         },
       }),
       prisma.attempt.count({
@@ -77,6 +90,7 @@ export async function getUserAggregate(
             isDraft: false,
             endTime: { lt: now },
             startTime: { gt: user.createdAt },
+            ...seasonFilter,
           },
         },
       }),
@@ -92,14 +106,22 @@ export async function getUserAggregate(
 /**
  * Batched version for the leaderboard. Returns a map keyed by userId.
  * Issues 3 fixed queries regardless of the user count.
+ *
+ * Pass an optional `season` number to scope scores to a specific season.
+ * When omitted all seasons are included. From Season 2 onwards the
+ * prerequisite quiz score is excluded.
  */
 export async function getUsersAggregates(
-  userIds: string[]
+  userIds: string[],
+  season?: number
 ): Promise<Map<string, UserAggregate>> {
   const result = new Map<string, UserAggregate>();
   if (userIds.length === 0) return result;
 
   const now = new Date();
+  const seasonFilter = season !== undefined ? { season } : {};
+  const includePrereq = prereqCountsForSeason(season);
+
   const [users, allAttempts, pastQuizzes] = await Promise.all([
     prisma.user.findMany({
       where: { id: { in: userIds } },
@@ -113,11 +135,11 @@ export async function getUsersAggregates(
         rawScore: true,
         isComplete: true,
         archivedAt: true,
-        quiz: { select: { isPrerequisite: true, endTime: true, resultsProcessed: true } },
+        quiz: { select: { isPrerequisite: true, endTime: true, resultsProcessed: true, season: true } },
       },
     }),
     prisma.quiz.findMany({
-      where: { isPrerequisite: false, isDraft: false, endTime: { lt: now } },
+      where: { isPrerequisite: false, isDraft: false, endTime: { lt: now }, ...seasonFilter },
       select: { id: true, startTime: true },
     }),
   ]);
@@ -131,12 +153,19 @@ export async function getUsersAggregates(
       if (a.userId !== user.id) continue;
       attemptedQuizIds.add(a.quizId);
       if (a.isComplete && !a.archivedAt) {
-        // Show scores once the quiz window has closed OR results have been
-        // explicitly processed by an admin (resultsProcessed guards against
-        // wrong endTime values like a typo in the year).
-        const scoreVisible = a.quiz.isPrerequisite || a.quiz.endTime < now || a.quiz.resultsProcessed;
-        if (scoreVisible) totalScore += Number(a.rawScore ?? 0);
-        quizzesAttempted++;
+        if (a.quiz.isPrerequisite) {
+          if (includePrereq) {
+            quizzesAttempted++;
+            totalScore += Number(a.rawScore ?? 0);
+          }
+        } else {
+          const inSeason = season === undefined || a.quiz.season === season;
+          if (inSeason) {
+            quizzesAttempted++;
+            const scoreVisible = a.quiz.endTime < now || a.quiz.resultsProcessed;
+            if (scoreVisible) totalScore += Number(a.rawScore ?? 0);
+          }
+        }
       }
     }
 

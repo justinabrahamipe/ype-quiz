@@ -35,18 +35,57 @@ export const metadata: Metadata = (() => {
 export default async function MembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; s?: string }>;
 }) {
   const session = await auth();
   const userId = session?.user?.id;
-  const { q: selectedQuizId } = await searchParams;
+  const { q: selectedQuizId, s: seasonParam } = await searchParams;
   const now = new Date();
 
-  // All finished quizzes for the selector dropdown (oldest first)
+  // Fetch current season from settings (defaults to 1)
+  const appSettings = await prisma.appSettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1 },
+  });
+  const currentSeason = appSettings.currentSeason;
+
+  // No param → current season. "all" → all seasons. ?s=N → specific season.
+  const effectiveSeason: number | undefined =
+    !seasonParam
+      ? currentSeason
+      : seasonParam === "all"
+      ? undefined
+      : Number.isNaN(parseInt(seasonParam, 10))
+      ? currentSeason
+      : parseInt(seasonParam, 10);
+
+  // Season labels (custom names) + distinct season numbers
+  const [seasonLabelRows, seasonRows] = await Promise.all([
+    prisma.seasonLabel.findMany(),
+    prisma.quiz.findMany({
+      where: { isDraft: false, isPrerequisite: false },
+      select: { season: true },
+      distinct: ["season"],
+      orderBy: { season: "asc" },
+    }),
+  ]);
+  const seasonLabels: Record<number, string> = Object.fromEntries(
+    seasonLabelRows.map((l) => [l.season, l.name])
+  );
+  const seasons = seasonRows.map((r) => r.season);
+  // Always include currentSeason even if it has no quizzes yet
+  if (!seasons.includes(currentSeason)) {
+    seasons.push(currentSeason);
+    seasons.sort((a, b) => a - b);
+  }
+
+  // Finished quizzes for the quiz dropdown (scoped to selected season, or all)
   const finishedQuizzes = await prisma.quiz.findMany({
     where: {
       isDraft: false,
       isPrerequisite: false,
+      ...(effectiveSeason !== undefined ? { season: effectiveSeason } : {}),
       OR: [
         { endTime: { lt: now } },
         { resultsProcessed: true },
@@ -63,7 +102,16 @@ export default async function MembersPage({
 
   // ── Per-quiz view ─────────────────────────────────────────────────────────
   if (selectedQuizId) {
-    const quiz = finishedQuizzes.find((q) => q.id === selectedQuizId);
+    // Allow viewing any finished quiz regardless of season filter
+    const quiz = await prisma.quiz.findFirst({
+      where: {
+        id: selectedQuizId,
+        isDraft: false,
+        isPrerequisite: false,
+        OR: [{ endTime: { lt: now } }, { resultsProcessed: true }],
+      },
+      select: { id: true, title: true, questionCount: true, season: true },
+    });
     if (!quiz) redirect("/leaderboard");
 
     const attempts = await prisma.attempt.findMany({
@@ -95,17 +143,33 @@ export default async function MembersPage({
       return { ...m, rank };
     });
 
+    // For per-quiz view, show the season's quiz options in the dropdown
+    const quizSeasonOptions = await prisma.quiz.findMany({
+      where: {
+        isDraft: false,
+        isPrerequisite: false,
+        season: quiz.season,
+        OR: [{ endTime: { lt: now } }, { resultsProcessed: true }],
+      },
+      select: { id: true, title: true },
+      orderBy: { endTime: "asc" },
+    });
+
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <MembersContent
           members={[]}
           currentUserId={userId}
-          quizOptions={quizOptions}
+          quizOptions={quizSeasonOptions.map((q) => ({ id: q.id, label: q.title }))}
           selectedQuizId={selectedQuizId}
           quizTitle={quiz.title}
           totalQuestions={quiz.questionCount}
           quizMembers={quizMembers}
+          seasons={seasons}
+          selectedSeason={quiz.season}
+          currentSeason={currentSeason}
+          seasonLabels={seasonLabels}
         />
         <BottomNav />
       </div>
@@ -117,7 +181,10 @@ export default async function MembersPage({
     where: { isQualified: true, isApproved: true, role: "user" },
     select: { id: true, name: true, email: true, image: true },
   });
-  const aggregates = await getUsersAggregates(qualifiedUsers.map((u) => u.id));
+  const aggregates = await getUsersAggregates(
+    qualifiedUsers.map((u) => u.id),
+    effectiveSeason
+  );
 
   const sorted = qualifiedUsers
     .map((u) => {
@@ -155,6 +222,10 @@ export default async function MembersPage({
         currentUserId={userId}
         quizOptions={quizOptions}
         selectedQuizId={undefined}
+        seasons={seasons}
+        selectedSeason={effectiveSeason}
+        currentSeason={currentSeason}
+        seasonLabels={seasonLabels}
       />
       <BottomNav />
     </div>

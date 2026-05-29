@@ -16,8 +16,12 @@ import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRou
 import MilitaryTechRoundedIcon from "@mui/icons-material/MilitaryTechRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import LeaderboardRoundedIcon from "@mui/icons-material/LeaderboardRounded";
+import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import IconButton from "@mui/material/IconButton";
 import { ShareButton } from "@/components/share-button";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 type Member = {
   id: string;
@@ -51,6 +55,10 @@ type Props = {
   quizTitle?: string;
   totalQuestions?: number;
   quizMembers?: QuizMember[];
+  seasons?: number[];
+  selectedSeason?: number;
+  currentSeason?: number;
+  seasonLabels?: Record<number, string>;
 };
 
 const MEDAL = {
@@ -104,9 +112,30 @@ export function MembersContent({
   quizTitle,
   totalQuestions,
   quizMembers,
+  seasons = [],
+  selectedSeason,
+  currentSeason,
+  seasonLabels = {},
 }: Props) {
   const router = useRouter();
   const isQuizView = !!selectedQuizId;
+  const getSeasonName = (s: number) => seasonLabels[s] ?? `Season ${s}`;
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    let lines: string[];
+    if (isQuizView && quizMembers) {
+      lines = quizMembers.map((m) =>
+        `#${m.rank}  ${m.name}  —  ${m.score}${totalQuestions ? ` / ${totalQuestions}` : " pts"}`
+      );
+    } else {
+      lines = members.map((m) => `#${m.rank}  ${m.name}  —  ${m.score} pts`);
+    }
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     (typeof window !== "undefined" ? window.location.origin : "");
@@ -115,18 +144,54 @@ export function MembersContent({
     ? `${siteUrl}/leaderboard?q=${selectedQuizId}`
     : `${siteUrl}/leaderboard`;
 
-  // ── Quiz selector handler ─────────────────────────────────────────────────
+  // ── Selector handlers ────────────────────────────────────────────────────
+  const handleSeasonChange = (s: number | "all") => {
+    router.push(s === "all" ? "/leaderboard?s=all" : `/leaderboard?s=${s}`);
+  };
+
+  const seasonUrlPart = selectedSeason !== undefined ? `s=${selectedSeason}` : "s=all";
+
   const handleSelect = (value: string) => {
     if (value === "overall") {
-      router.push("/leaderboard");
+      router.push(`/leaderboard?${seasonUrlPart}`);
     } else {
-      router.push(`/leaderboard?q=${value}`);
+      router.push(`/leaderboard?q=${value}&${seasonUrlPart}`);
     }
   };
 
   // ── Selector bar (shared between both views) ──────────────────────────────
   const SelectorBar = (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mb: 3 }}>
+      {/* Season selector — only shown when more than one season exists */}
+      {seasons.length > 1 && !isQuizView && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, minWidth: 48 }}>
+            Season
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            {seasons.map((s) => {
+              const isSelected = s === selectedSeason;
+              const isCurrent = s === currentSeason;
+              return (
+                <Chip
+                  key={s}
+                  label={isCurrent ? `${getSeasonName(s)} ✦` : getSeasonName(s)}
+                  size="small"
+                  color={isSelected || isCurrent ? "primary" : "default"}
+                  variant={isSelected ? "filled" : "outlined"}
+                  onClick={() => handleSeasonChange(s)}
+                  sx={{
+                    cursor: "pointer",
+                    fontWeight: isSelected ? 700 : 500,
+                    opacity: isSelected ? 1 : isCurrent ? 0.85 : 0.65,
+                  }}
+                />
+              );
+            })}
+          </Box>
+        </Box>
+      )}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
       <FormControl size="small" sx={{ flex: 1, maxWidth: 320 }}>
         <Select
           value={selectedQuizId ?? "overall"}
@@ -161,14 +226,15 @@ export function MembersContent({
         </Select>
       </FormControl>
 
-      <ShareButton
-        title={isQuizView ? `${quizTitle} · YPE Bible Quiz` : "YPE Bible Quiz Leaderboard"}
-        text={isQuizView
-          ? `Check out the results for ${quizTitle}!\n${shareUrl}`
-          : `YPE Bible Quiz Leaderboard\n${shareUrl}`}
-        url={shareUrl}
-        label="Share"
-      />
+      {isQuizView && (
+        <ShareButton
+          title={`${quizTitle} · YPE Bible Quiz`}
+          text={`Check out the results for ${quizTitle}!\n${shareUrl}`}
+          url={shareUrl}
+          label="Share"
+        />
+      )}
+      </Box>
     </Box>
   );
 
@@ -199,6 +265,11 @@ export function MembersContent({
               </Typography>
             </Box>
           </Box>
+          <Tooltip title={copied ? "Copied!" : "Copy rankings"} arrow>
+            <IconButton onClick={handleCopy} size="small" color={copied ? "success" : "default"}>
+              {copied ? <CheckRoundedIcon fontSize="small" /> : <ContentCopyRoundedIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
         </Box>
 
         {SelectorBar}
@@ -374,7 +445,19 @@ export function MembersContent({
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
         <Box>
-          <Typography variant="h5" className="gradient-text">Leaderboard</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography variant="h5" className="gradient-text">
+              {selectedSeason !== undefined ? getSeasonName(selectedSeason) : "Leaderboard"}
+            </Typography>
+            {selectedSeason !== undefined && selectedSeason === currentSeason && (
+              <Chip
+                label="CURRENT"
+                size="small"
+                color="primary"
+                sx={{ fontSize: "0.6rem", fontWeight: 800, letterSpacing: "0.08em", height: 20 }}
+              />
+            )}
+          </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
             <PeopleRoundedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
             <Typography variant="body2" color="text.secondary">
@@ -382,12 +465,19 @@ export function MembersContent({
             </Typography>
           </Box>
         </Box>
-        <ShareButton
-          title="YPE Bible Quiz Leaderboard"
-          text={shareText}
-          url={shareUrl}
-          label="Share"
-        />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Tooltip title={copied ? "Copied!" : "Copy rankings"} arrow>
+            <IconButton onClick={handleCopy} size="small" color={copied ? "success" : "default"}>
+              {copied ? <CheckRoundedIcon fontSize="small" /> : <ContentCopyRoundedIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+          <ShareButton
+            title="YPE Bible Quiz Leaderboard"
+            text={shareText}
+            url={shareUrl}
+            label="Share"
+          />
+        </Box>
       </Box>
 
       {SelectorBar}

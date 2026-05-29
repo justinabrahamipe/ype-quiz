@@ -28,14 +28,20 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
   const body = await req.json();
-  const { openSignup } = body;
-  if (typeof openSignup !== "boolean") {
-    return NextResponse.json({ error: "openSignup must be boolean" }, { status: 400 });
+  const { openSignup, currentSeason } = body;
+
+  const updateData: Record<string, unknown> = {};
+  if (typeof openSignup === "boolean") updateData.openSignup = openSignup;
+  if (Number.isInteger(currentSeason) && currentSeason >= 1) updateData.currentSeason = currentSeason;
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
+
   const settings = await prisma.appSettings.upsert({
     where: { id: 1 },
-    update: { openSignup },
-    create: { id: 1, openSignup },
+    update: updateData,
+    create: { id: 1, ...updateData },
   });
   return NextResponse.json(settings);
 }

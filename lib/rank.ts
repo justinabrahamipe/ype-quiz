@@ -18,13 +18,14 @@ type OverallRank = {
  */
 export async function getOverallRank(
   score: number,
-  hasScore: boolean
+  hasScore: boolean,
+  season?: number
 ): Promise<OverallRank> {
   const users = await prisma.user.findMany({
     where: { isApproved: true, role: "user" },
     select: { id: true },
   });
-  const aggregates = await getUsersAggregates(users.map((u) => u.id));
+  const aggregates = await getUsersAggregates(users.map((u) => u.id), season);
 
   const higherScores = new Set<number>();
   let same = 0;

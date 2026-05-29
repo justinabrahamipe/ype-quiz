@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const appSettings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+  const currentSeason = appSettings?.currentSeason ?? 1;
+
   const quiz = await prisma.quiz.create({
     data: {
       title,
@@ -72,6 +75,7 @@ export async function POST(req: NextRequest) {
       isPrerequisite: !!isPrerequisite,
       hasMalayalam: !!hasMalayalam,
       isDraft: draft,
+      season: currentSeason,
       createdBy: session.user.id,
       questions: {
         create: questionList.map((q, i) => ({
